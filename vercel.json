@@ -1,13 +1,10 @@
 {
   "functions": {
-    "api/*.js": {
-      "runtime": "nodejs18.x"
+    "api/chat.js": {
+      "runtime": "nodejs20.x"
+    },
+    "api/speech.js": {
+      "runtime": "nodejs20.x"
     }
-  },
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    }
-  ]
+  }
 }
