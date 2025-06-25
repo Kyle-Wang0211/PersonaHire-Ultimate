@@ -1,10 +1,6 @@
 {
   "functions": {
-    "api/chat.js": {
-      "runtime": "nodejs20.x"
-    },
-    "api/speech.js": {
-      "runtime": "nodejs20.x"
-    }
+    "api/chat.js": {},
+    "api/speech.js": {}
   }
 }
