@@ -1,0 +1,199 @@
+// 🔧 PersonaHire Ultimate - 配置文件
+// 包含所有配置项、常量和初始设置
+
+// 🌐 应用配置
+const APP_CONFIG = {
+    name: 'PersonaHire Ultimate',
+    version: '2.0.0',
+    author: 'Kaidong Wang',
+    github: 'https://github.com/Kyle-Wang0211/PersonaHire-Ultimate'
+};
+
+// 🔑 API配置
+const API_CONFIG = {
+    // 默认API密钥（用户模式）
+    DEFAULT_OPENAI_KEY: "your-openai-api-key-here",
+    DEFAULT_ELEVEN_KEY: "your-elevenlabs-api-key-here",
+    
+    // API端点
+    OPENAI_ENDPOINT: 'https://api.openai.com/v1/chat/completions',
+    OPENAI_TTS_ENDPOINT: 'https://api.openai.com/v1/audio/speech',
+    ELEVENLABS_ENDPOINT: 'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
+    
+    // 安全配置
+    ALLOWED_MODEL: 'gpt-4',
+    MAX_TOKENS_PER_REQUEST: 800,
+    DAILY_TOKEN_LIMIT: 10000,
+    COST_PER_1K_TOKENS: 0.03
+};
+
+// 🎭 面试官人格配置
+const INTERVIEWER_PERSONALITIES = {
+    professional: `你是专业技术面试官Sarah，注重逻辑思维和技术细节，会深度追问。`,
+    friendly: `你是温和HR面试官Sarah，善于鼓励候选人，营造轻松氛围但保持专业。`,
+    pressure: `你是高标准主管Sarah，会通过挑战性问题测试候选人抗压能力。`,
+    creative: `你是创新领导Sarah，喜欢开放式问题，鼓励创意思维和独特见解。`
+};
+
+// 📊 难度等级配置
+const DIFFICULTY_SETTINGS = {
+    beginner: "适合应届生，问题基础，重点考察学习能力",
+    intermediate: "适合1-3年经验，平衡技能和软实力", 
+    advanced: "适合资深人士，深度考察专业能力和领导力",
+    expert: "适合高级岗位，重点考察战略思维和管理能力"
+};
+
+// 🎵 语音配置
+const VOICE_CONFIG = {
+    OPENAI_VOICES: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
+    DEFAULT_VOICE: 'nova',
+    TTS_SPEED: 1.0,
+    
+    // ElevenLabs配置
+    ELEVENLABS_MODEL: 'eleven_multilingual_v2',
+    ELEVENLABS_SETTINGS: {
+        stability: 0.5,
+        similarity_boost: 0.8,
+        style: 0.3,
+        use_speaker_boost: true
+    }
+};
+
+// 🛡️ 安全配置
+const SECURITY_CONFIG = {
+    // Token使用限制
+    MAX_TOKENS_PER_REQUEST: 1000,
+    DAILY_TOKEN_LIMIT: 10000,
+    WARNING_THRESHOLD: 5000,
+    
+    // 允许的模型列表
+    ALLOWED_MODELS: ['gpt-4', 'gpt-4-0613'],
+    BLOCKED_MODELS: [
+        'gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo', 
+        'chatgpt-4o-latest', 'gpt-4-turbo'
+    ],
+    
+    // 监控配置
+    LOG_RETENTION_DAYS: 30,
+    SECURITY_ALERT_THRESHOLD: 10000
+};
+
+// 📱 界面配置
+const UI_CONFIG = {
+    ANIMATION_DURATION: 300,
+    AUTO_SCROLL: true,
+    THEME: {
+        PRIMARY: '#667eea',
+        SECONDARY: '#764ba2',
+        SUCCESS: '#28a745',
+        WARNING: '#ffc107',
+        DANGER: '#dc3545',
+        INFO: '#17a2b8'
+    }
+};
+
+// 📊 监控配置
+const MONITORING_CONFIG = {
+    // 数据库配置
+    STORAGE_KEY: 'personahire_token_db',
+    DATABASE_VERSION: '1.0',
+    
+    // 统计配置
+    RETENTION_PERIOD: 30, // 天
+    AUTO_CLEANUP: true,
+    
+    // 导出配置
+    EXPORT_FORMATS: ['json', 'csv'],
+    DATE_FORMAT: 'YYYY-MM-DD',
+    TIME_FORMAT: 'HH:mm:ss'
+};
+
+// 🌍 全局变量初始化
+let openaiKey = '';
+let elevenKey = '';
+let conversationHistory = [];
+let interviewStarted = false;
+let currentAudio = null;
+let currentInterviewTokens = 0;
+let currentInterviewStartTime = null;
+
+// 🔍 模式检测
+const isDeveloperMode = window.location.search.includes('dev=true');
+
+// 🛠️ 实用工具函数
+const Utils = {
+    // 时间格式化
+    formatDate: (dateStr) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            weekday: 'short'
+        });
+    },
+    
+    formatFullTime: (timestamp) => {
+        const date = new Date(timestamp);
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    },
+    
+    // 数字格式化
+    formatNumber: (num) => {
+        return num.toLocaleString();
+    },
+    
+    // 费用计算
+    calculateCost: (tokens) => {
+        return (tokens / 1000) * API_CONFIG.COST_PER_1K_TOKENS;
+    },
+    
+    // 类型标签转换
+    getTypeLabel: (type) => {
+        const labels = {
+            'chat': '对话',
+            'report': '报告',
+            'interview_start': '开始面试',
+            'tts': '语音合成',
+            'protected-chat': '安全对话'
+        };
+        return labels[type] || type;
+    },
+    
+    // 随机ID生成
+    generateId: () => {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    },
+    
+    // 深拷贝
+    deepCopy: (obj) => {
+        return JSON.parse(JSON.stringify(obj));
+    }
+};
+
+// 🎯 导出配置（供其他模块使用）
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        APP_CONFIG,
+        API_CONFIG,
+        INTERVIEWER_PERSONALITIES,
+        DIFFICULTY_SETTINGS,
+        VOICE_CONFIG,
+        SECURITY_CONFIG,
+        UI_CONFIG,
+        MONITORING_CONFIG,
+        Utils
+    };
+}
+
+console.log(`🚀 ${APP_CONFIG.name} v${APP_CONFIG.version} 配置加载完成`);
+console.log(`🔧 开发者模式: ${isDeveloperMode ? '启用' : '禁用'}`);
+console.log(`🛡️ 安全保护: ${SECURITY_CONFIG.ALLOWED_MODELS.join(', ')}`);

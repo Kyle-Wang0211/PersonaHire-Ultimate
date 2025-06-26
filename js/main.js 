@@ -1,0 +1,652 @@
+// 🚀 PersonaHire Ultimate - 主业务逻辑
+// 整合所有模块，提供统一的接口
+
+class PersonaHireApp {
+    constructor() {
+        this.isInitialized = false;
+        this.modules = {};
+    }
+
+    // 🔧 应用初始化
+    async init() {
+        try {
+            console.log('🚀 PersonaHire Ultimate 启动中...');
+            
+            // 初始化各个模块
+            await this.initializeModules();
+            
+            // 设置界面
+            this.setupInterface();
+            
+            // 绑定事件
+            this.bindEvents();
+            
+            // 应用启动完成
+            this.isInitialized = true;
+            console.log('✅ PersonaHire Ultimate 启动完成');
+            
+        } catch (error) {
+            console.error('❌ 应用初始化失败:', error);
+            this.showError('应用初始化失败，请刷新页面重试');
+        }
+    }
+
+    // 📦 模块初始化
+    async initializeModules() {
+        // 初始化安全系统
+        if (typeof initializeSecurity === 'function') {
+            this.modules.security = initializeSecurity();
+            console.log('🛡️ 安全模块加载:', this.modules.security ? '成功' : '失败');
+        }
+
+        // 初始化Token监控
+        if (typeof initializeTokenMonitoring === 'function') {
+            this.modules.tokenMonitoring = initializeTokenMonitoring();
+            console.log('📊 监控模块加载:', this.modules.tokenMonitoring ? '成功' : '失败');
+        }
+
+        // 初始化API密钥
+        this.initializeApiKeys();
+    }
+
+    // 🔑 API密钥初始化
+    initializeApiKeys() {
+        if (isDeveloperMode) {
+            // 开发者模式：显示API配置界面
+            this.setupDeveloperMode();
+        } else {
+            // 用户模式：使用预设密钥
+            this.setupUserMode();
+        }
+    }
+
+    // 🔧 开发者模式设置
+    setupDeveloperMode() {
+        document.getElementById('mainContainer').className = 'container dev-mode';
+        document.getElementById('devModeLink').textContent = '👤 用户模式';
+        document.getElementById('devModeLink').href = './';
+        document.getElementById('modeBadge').textContent = '🔧 开发者监控中心';
+        document.getElementById('headerDesc').textContent = 'API配置和详细Token使用监控系统';
+        
+        // 加载已保存的API密钥
+        const savedOpenaiKey = localStorage.getItem('openai_api_key');
+        const savedElevenKey = localStorage.getItem('eleven_api_key');
+        
+        if (savedOpenaiKey) {
+            document.getElementById('openaiKey').value = savedOpenaiKey;
+            openaiKey = savedOpenaiKey;
+        }
+        
+        if (savedElevenKey) {
+            document.getElementById('elevenKey').value = savedElevenKey;
+            elevenKey = savedElevenKey;
+        }
+        
+        // 初始化日期筛选器
+        this.setupDateFilters();
+        
+        // 加载Token统计
+        if (this.modules.tokenMonitoring && typeof TokenMonitoring !== 'undefined') {
+            TokenMonitoring.refreshStats();
+        }
+    }
+
+    // 👤 用户模式设置
+    setupUserMode() {
+        document.getElementById('mainContainer').className = 'container';
+        document.getElementById('modeBadge').textContent = '✨ 即开即用版';
+        document.getElementById('modeBadge').style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
+        
+        openaiKey = API_CONFIG.DEFAULT_OPENAI_KEY;
+        elevenKey = API_CONFIG.DEFAULT_ELEVEN_KEY;
+        
+        // 检查是否有有效的预设密钥
+        if (openaiKey && openaiKey !== "your-openai-api-key-here") {
+            document.getElementById('startBtn').disabled = false;
+        } else {
+            this.showMessage('⚠️ 系统正在维护中，请稍后再试或联系管理员。', 'error');
+        }
+        
+        this.updateWelcomeMessage();
+    }
+
+    // 📅 设置日期筛选器
+    setupDateFilters() {
+        const today = new Date().toISOString().split('T')[0];
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+        document.getElementById('endDate').value = today;
+        document.getElementById('logDate').value = today;
+    }
+
+    // 🎨 界面设置
+    setupInterface() {
+        // 设置欢迎消息
+        this.updateWelcomeMessage();
+    }
+
+    // 📝 更新欢迎消息
+    updateWelcomeMessage() {
+        if (!isDeveloperMode) {
+            const welcomeMsg = document.getElementById('welcomeMessage');
+            welcomeMsg.innerHTML = `
+            欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。
+            <br><br>
+            🎯 <strong>即开即用</strong> - 无需任何配置，立即开始专业面试体验
+            <br>🤖 <strong>GPT-4.1驱动</strong> - 最先进的AI推理引擎
+            <br>🎵 <strong>真人语音</strong> - 接近真实面试官的语音交互
+            <br>📊 <strong>专业评估</strong> - 多维度面试表现分析
+            <br><br>
+            请选择您想要的面试风格和难度，然后点击"开始面试"！
+            `;
+        }
+    }
+
+    // 🎯 事件绑定
+    bindEvents() {
+        // 回车发送消息
+        const userInput = document.getElementById('userInput');
+        if (userInput) {
+            userInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+        }
+
+        // 页面关闭前保存数据
+        window.addEventListener('beforeunload', () => {
+            this.saveApplicationState();
+        });
+    }
+
+    // 💾 保存API密钥
+    saveApiKeys() {
+        const openaiInput = document.getElementById('openaiKey');
+        const elevenInput = document.getElementById('elevenKey');
+        
+        openaiKey = openaiInput.value.trim();
+        elevenKey = elevenInput.value.trim();
+        
+        if (openaiKey && openaiKey.startsWith('sk-')) {
+            localStorage.setItem('openai_api_key', openaiKey);
+            if (elevenKey) {
+                localStorage.setItem('eleven_api_key', elevenKey);
+            }
+            this.showMessage('✅ API配置保存成功！', 'success');
+        } else {
+            this.showError('请输入有效的OpenAI API Key (以sk-开头)');
+        }
+    }
+
+    // 🎯 开始面试
+    async startInterview() {
+        if (!this.validateApiKey()) return;
+
+        const style = document.getElementById('interviewerStyle')?.value || 'friendly';
+        const difficulty = document.getElementById('difficulty')?.value || 'intermediate';
+
+        const systemPrompt = `${INTERVIEWER_PERSONALITIES[style]}
+
+面试难度: ${DIFFICULTY_SETTINGS[difficulty]}
+
+面试规则：
+1. 一次只问一个问题，等候选人回答完再问下一个
+2. 根据候选人的回答进行3-5轮深度追问
+3. 保持对话连贯，控制在合理长度内
+4. 每个问题都要有明确的考察目的
+5. 面试总时长控制在15-20分钟
+6. 适时给予反馈和鼓励
+
+请用中文进行面试，保持专业但友好的语气。现在开始第一个问题。`;
+
+        try {
+            // 重置面试状态
+            this.resetInterviewState();
+            
+            // 更新UI状态
+            this.setInterviewUIState('starting');
+            
+            // 使用安全API调用
+            const response = await this.secureAPICall([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: '开始面试' }
+            ]);
+            
+            // 记录面试开始
+            if (typeof TokenMonitoring !== 'undefined') {
+                TokenMonitoring.logUsage(0, 'interview_start');
+            }
+            
+            // 显示响应
+            this.addMessage(response, 'interviewer');
+            await this.playAudio(response);
+            
+            interviewStarted = true;
+            this.setInterviewUIState('active');
+            
+        } catch (error) {
+            this.handleInterviewError('启动面试失败', error);
+        }
+    }
+
+    // 💬 发送消息
+    async sendMessage() {
+        const userInput = document.getElementById('userInput');
+        const message = userInput?.value?.trim();
+
+        if (!message || !interviewStarted) return;
+
+        try {
+            this.addMessage(message, 'user');
+            userInput.value = '';
+            this.setMessageUIState('sending');
+
+            // 更新对话历史
+            conversationHistory.push({ role: 'user', content: message });
+
+            // 限制对话历史长度
+            if (conversationHistory.length > 21) {
+                const systemPrompt = conversationHistory[0];
+                conversationHistory = [systemPrompt, ...conversationHistory.slice(-20)];
+            }
+
+            // 安全API调用
+            const response = await this.secureAPICall(conversationHistory);
+            
+            conversationHistory.push({ role: 'assistant', content: response });
+            this.addMessage(response, 'interviewer');
+            await this.playAudio(response);
+
+        } catch (error) {
+            this.handleMessageError('发送消息失败', error);
+        } finally {
+            this.setMessageUIState('ready');
+        }
+    }
+
+    // 📊 生成报告
+    async generateReport() {
+        if (conversationHistory.length < 4) {
+            this.showError('面试内容太少，无法生成有效报告。请至少进行3轮对话。');
+            return;
+        }
+
+        try {
+            this.setUIState('loading', '正在生成专业评估报告...');
+
+            const reportPrompt = `基于以上面试对话，生成简洁的专业评估报告，包括：
+
+1. 整体表现概述（1-2句话总结表现、优势和主要提升空间）
+2. 核心能力评估（技能、沟通、逻辑思维、应变能力等，每项1-10分+简短评价）
+3. 主要亮点（2-3个突出优势）
+4. 需要改进的方面（2-3个具体改进点）
+5. 详细评分表格（6-8个维度，格式：维度 | 得分 | 一句话评价）
+
+要求：简洁专业，总长度控制在400字以内，重点突出关键信息。`;
+
+            // 创建报告历史
+            const reportHistory = [
+                conversationHistory[0], // 系统提示词
+                ...conversationHistory.slice(-8), // 最近4轮对话
+                { role: 'user', content: reportPrompt }
+            ];
+            
+            const report = await this.secureAPICall(reportHistory, { type: 'report' });
+            
+            this.addMessage(`📊 **面试评估报告**\n\n${report}`, 'interviewer');
+            await this.playAudio('您的面试评估报告已生成完成，请查看详细分析。');
+            
+            this.showMessage('✅ 面试报告生成成功！', 'success');
+
+        } catch (error) {
+            this.handleError('生成报告失败', error);
+        } finally {
+            this.setUIState('ready');
+        }
+    }
+
+    // 🔒 安全API调用
+    async secureAPICall(messages, options = {}) {
+        if (typeof SecureAPI !== 'undefined' && SecureAPI.callGPT) {
+            return await SecureAPI.callGPT(messages, options);
+        } else {
+            // 降级到基础API调用
+            return await this.basicAPICall(messages, options);
+        }
+    }
+
+    // 🌐 基础API调用（安全降级）
+    async basicAPICall(messages, options = {}) {
+        const response = await fetch(API_CONFIG.OPENAI_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${openaiKey}`,
+                'User-Agent': `${APP_CONFIG.name}/${APP_CONFIG.version}`
+            },
+            body: JSON.stringify({
+                model: API_CONFIG.ALLOWED_MODEL,
+                messages: messages,
+                max_tokens: Math.min(options.max_tokens || 800, API_CONFIG.MAX_TOKENS_PER_REQUEST),
+                temperature: 0.7,
+                user: `PersonaHire-${Date.now()}`
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || '请求失败');
+        }
+
+        const data = await response.json();
+        
+        // 记录Token使用
+        if (data.usage && typeof TokenMonitoring !== 'undefined') {
+            TokenMonitoring.logUsage(data.usage.total_tokens, options.type || 'chat');
+        }
+        
+        return data.choices[0].message.content;
+    }
+
+    // 🎵 播放音频
+    async playAudio(text) {
+        if (currentAudio) {
+            currentAudio.pause();
+        }
+
+        try {
+            const audioUrl = await this.generateSpeech(text);
+            if (audioUrl) {
+                currentAudio = new Audio(audioUrl);
+                currentAudio.play();
+                currentAudio.onended = () => URL.revokeObjectURL(audioUrl);
+            }
+        } catch (error) {
+            console.log('音频播放失败:', error);
+        }
+    }
+
+    // 🗣️ 语音合成
+    async generateSpeech(text) {
+        if (!elevenKey) {
+            return await this.generateOpenAITTS(text);
+        }
+        return await this.generateElevenLabsTTS(text);
+    }
+
+    // 🎵 OpenAI TTS
+    async generateOpenAITTS(text) {
+        try {
+            const response = await fetch(API_CONFIG.OPENAI_TTS_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${openaiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'tts-1',
+                    voice: document.getElementById('voiceStyle')?.value || VOICE_CONFIG.DEFAULT_VOICE,
+                    input: text,
+                    speed: VOICE_CONFIG.TTS_SPEED
+                })
+            });
+
+            if (response.ok) {
+                const audioBlob = await response.blob();
+                return URL.createObjectURL(audioBlob);
+            }
+        } catch (error) {
+            console.log('OpenAI TTS失败:', error);
+        }
+        return null;
+    }
+
+    // 🎵 ElevenLabs TTS
+    async generateElevenLabsTTS(text) {
+        try {
+            const response = await fetch(API_CONFIG.ELEVENLABS_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'audio/mpeg',
+                    'Content-Type': 'application/json',
+                    'xi-api-key': elevenKey
+                },
+                body: JSON.stringify({
+                    text: text,
+                    model_id: VOICE_CONFIG.ELEVENLABS_MODEL,
+                    voice_settings: VOICE_CONFIG.ELEVENLABS_SETTINGS
+                })
+            });
+
+            if (response.ok) {
+                const audioBlob = await response.blob();
+                return URL.createObjectURL(audioBlob);
+            }
+        } catch (error) {
+            console.log('ElevenLabs TTS失败:', error);
+        }
+        return null;
+    }
+
+    // 💬 添加消息到聊天区
+    addMessage(content, sender) {
+        const chatArea = document.getElementById('chatArea');
+        if (!chatArea) return;
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}`;
+        
+        const senderName = sender === 'interviewer' ? '🎭 AI面试官 Sarah' : '👤 您';
+        messageDiv.innerHTML = `<strong>${senderName}：</strong>${content.replace(/\n/g, '<br>')}`;
+        
+        if (sender === 'interviewer') {
+            const voiceControls = document.createElement('div');
+            voiceControls.className = 'voice-controls';
+            voiceControls.innerHTML = `<button class="voice-btn" onclick="app.playAudio('${content.replace(/'/g, "\\'")}')">🔊 重播语音</button>`;
+            messageDiv.appendChild(voiceControls);
+        }
+        
+        chatArea.appendChild(messageDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // 🔍 验证API Key
+    validateApiKey() {
+        if (!openaiKey || (isDeveloperMode && !openaiKey.startsWith('sk-'))) {
+            this.showError('请先配置OpenAI API Key');
+            return false;
+        }
+        return true;
+    }
+
+    // 🔄 重置面试状态
+    resetInterviewState() {
+        currentInterviewTokens = 0;
+        currentInterviewStartTime = new Date();
+        conversationHistory = [];
+        interviewStarted = false;
+    }
+
+    // 🎨 UI状态管理
+    setInterviewUIState(state) {
+        const elements = {
+            startBtn: document.getElementById('startBtn'),
+            endBtn: document.getElementById('endBtn'),
+            reportBtn: document.getElementById('reportBtn'),
+            userInput: document.getElementById('userInput'),
+            sendBtn: document.getElementById('sendBtn'),
+            loading: document.getElementById('loading')
+        };
+
+        switch (state) {
+            case 'starting':
+                elements.startBtn.disabled = true;
+                elements.loading.style.display = 'block';
+                break;
+            case 'active':
+                elements.endBtn.disabled = false;
+                elements.reportBtn.disabled = false;
+                elements.userInput.disabled = false;
+                elements.sendBtn.disabled = false;
+                elements.loading.style.display = 'none';
+                break;
+            case 'ended':
+                elements.startBtn.disabled = false;
+                elements.endBtn.disabled = true;
+                elements.userInput.disabled = true;
+                elements.sendBtn.disabled = true;
+                break;
+        }
+    }
+
+    setMessageUIState(state) {
+        const sendBtn = document.getElementById('sendBtn');
+        const loading = document.getElementById('loading');
+
+        switch (state) {
+            case 'sending':
+                sendBtn.disabled = true;
+                loading.style.display = 'block';
+                break;
+            case 'ready':
+                sendBtn.disabled = false;
+                loading.style.display = 'none';
+                break;
+        }
+    }
+
+    setUIState(state, message = '') {
+        const loading = document.getElementById('loading');
+        
+        switch (state) {
+            case 'loading':
+                loading.style.display = 'block';
+                if (message) loading.textContent = message;
+                break;
+            case 'ready':
+                loading.style.display = 'none';
+                break;
+        }
+    }
+
+    // 🏁 结束面试
+    endInterview() {
+        interviewStarted = false;
+        this.setInterviewUIState('ended');
+        this.addMessage('面试结束，感谢您的参与！如需查看详细评估，请点击"生成报告"按钮。', 'interviewer');
+        this.playAudio('面试结束，感谢您的参与！');
+    }
+
+    // 🗑️ 清空对话
+    clearChat() {
+        const chatArea = document.getElementById('chatArea');
+        if (chatArea) {
+            chatArea.innerHTML = `
+                <div class="message interviewer">
+                    <strong>🎭 AI面试官 Sarah：</strong>
+                    欢迎来到PersonaHire Ultimate！我已准备好开始新的面试。请配置好设置后点击"开始面试"。
+                </div>
+            `;
+        }
+        this.resetInterviewState();
+        if (isDeveloperMode && typeof TokenMonitoring !== 'undefined') {
+            TokenMonitoring.refreshStats();
+        }
+    }
+
+    // 🎵 播放欢迎消息
+    async playWelcomeMessage() {
+        const welcomeText = "欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。让我们开始一场精彩的面试吧！";
+        await this.playAudio(welcomeText);
+    }
+
+    // 💾 保存应用状态
+    saveApplicationState() {
+        // 保存当前状态到localStorage
+        const state = {
+            interviewStarted,
+            currentInterviewTokens,
+            lastUpdate: new Date().toISOString()
+        };
+        localStorage.setItem('personahire_app_state', JSON.stringify(state));
+    }
+
+    // 📢 消息显示
+    showMessage(message, type = 'info') {
+        const statusDiv = document.getElementById('statusMessage');
+        if (statusDiv) {
+            statusDiv.className = type;
+            statusDiv.innerHTML = message;
+            statusDiv.style.display = 'block';
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    showError(message) {
+        this.showMessage(message, 'error');
+    }
+
+    // 🚨 错误处理
+    handleInterviewError(message, error) {
+        console.error(message, error);
+        this.showError(`${message}: ${error.message}`);
+        this.setInterviewUIState('ended');
+    }
+
+    handleMessageError(message, error) {
+        console.error(message, error);
+        this.showError(`${message}: ${error.message}`);
+        this.addMessage('抱歉，我遇到了一些技术问题。请稍后再试。', 'interviewer');
+    }
+
+    handleError(message, error) {
+        console.error(message, error);
+        this.showError(`${message}: ${error.message}`);
+    }
+}
+
+// 🌍 全局应用实例
+let app;
+
+// 🚀 应用启动
+window.addEventListener('load', async () => {
+    try {
+        app = new PersonaHireApp();
+        await app.init();
+        
+        // 将关键函数绑定到全局作用域（为了兼容HTML事件）
+        window.saveApiKeys = () => app.saveApiKeys();
+        window.startInterview = () => app.startInterview();
+        window.sendMessage = () => app.sendMessage();
+        window.generateReport = () => app.generateReport();
+        window.endInterview = () => app.endInterview();
+        window.clearChat = () => app.clearChat();
+        window.playWelcomeMessage = () => app.playWelcomeMessage();
+        
+        // Token监控相关函数
+        if (typeof TokenMonitoring !== 'undefined') {
+            window.switchTab = TokenMonitoring.switchTab;
+            window.filterByDate = TokenMonitoring.filterByDate;
+            window.loadAllDays = TokenMonitoring.loadAllDays;
+            window.loadTodayLogs = TokenMonitoring.loadTodayLogs;
+            window.loadDayLogs = TokenMonitoring.loadDayLogs;
+            window.loadAllLogs = TokenMonitoring.loadAllLogs;
+            window.exportToJSON = TokenMonitoring.exportToJSON;
+            window.exportToCSV = TokenMonitoring.exportToCSV;
+            window.exportDailyStats = TokenMonitoring.exportDailyStats;
+            window.clearOldData = TokenMonitoring.clearOldData;
+            window.resetAllData = TokenMonitoring.resetAllData;
+        }
+        
+    } catch (error) {
+        console.error('❌ 应用启动失败:', error);
+    }
+});
+
+console.log('🚀 主应用模块加载完成');
