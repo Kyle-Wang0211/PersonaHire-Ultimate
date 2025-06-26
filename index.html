@@ -4,209 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PersonaHire - 终极AI面试官</title>
-    
-    <!-- 样式文件 -->
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-    <div class="container" id="mainContainer">
+    <div class="container">
         <div class="header">
             <div class="badge" id="modeBadge">🚀 GPT-4.1 + ElevenLabs TTS</div>
             <h1>🎭 PersonaHire Ultimate</h1>
-            <p id="headerDesc">顶级AI驱动的智能面试官 - 最强推理能力 + 真人语音</p>
+            <p>顶级AI驱动的智能面试官 - 最强推理能力 + 真人语音</p>
         </div>
 
-        <!-- 开发者模式专用界面 -->
-        <div class="developer-interface">
-            <div class="developer-info">
-                <h3>🔧 开发者监控中心</h3>
-                <p>完整的API配置和Token使用监控系统，包含详细的使用记录和每日统计。</p>
+        <div class="api-setup" id="apiSetup" style="display: none;">
+            <h3>🔑 API 配置 (开发者模式)</h3>
+            <div class="api-row">
+                <input type="password" id="openaiKey" placeholder="OpenAI API Key (sk-...)">
+                <input type="password" id="elevenKey" placeholder="ElevenLabs API Key (可选)">
             </div>
-
-            <div class="api-setup">
-                <h3>🔑 API 密钥配置</h3>
-                <div class="api-row">
-                    <input type="password" id="openaiKey" placeholder="OpenAI API Key (sk-...)">
-                    <input type="password" id="elevenKey" placeholder="ElevenLabs API Key (可选)">
-                </div>
-                <button onclick="saveApiKeys()">保存配置</button>
-                <small style="color: #666; display: block; margin-top: 16px;">
-                    💡 只有OpenAI Key是必需的。ElevenLabs Key可以获得更好的语音体验
-                </small>
-            </div>
-
-            <div class="token-monitoring">
-                <h3>📊 Token 使用监控系统</h3>
-                
-                <!-- 实时统计 -->
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-value" id="currentTokens">0</div>
-                        <div class="stat-label">本次面试</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="todayTokens">0</div>
-                        <div class="stat-label">今日总计</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="todayCalls">0</div>
-                        <div class="stat-label">今日调用</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="totalTokens">0</div>
-                        <div class="stat-label">累计总量</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="totalCost">$0.00</div>
-                        <div class="stat-label">累计费用</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="avgDaily">0</div>
-                        <div class="stat-label">日均使用</div>
-                    </div>
-                </div>
-
-                <!-- 监控标签页 -->
-                <div class="monitoring-tabs">
-                    <button class="tab-btn active" onclick="switchTab('daily')">📅 每日统计</button>
-                    <button class="tab-btn" onclick="switchTab('detailed')">📋 详细日志</button>
-                    <button class="tab-btn" onclick="switchTab('export')">📤 数据导出</button>
-                </div>
-
-                <!-- 每日统计标签页 -->
-                <div id="dailyTab" class="tab-content active">
-                    <div class="date-filter">
-                        <label>日期范围：</label>
-                        <input type="date" id="startDate">
-                        <span>至</span>
-                        <input type="date" id="endDate">
-                        <button class="btn btn-info" onclick="filterByDate()">筛选</button>
-                        <button class="btn btn-success" onclick="loadAllDays()">显示全部</button>
-                    </div>
-                    <table class="daily-stats-table">
-                        <thead>
-                            <tr>
-                                <th>日期</th>
-                                <th>API调用次数</th>
-                                <th>Token消耗</th>
-                                <th>估计费用</th>
-                                <th>平均每次</th>
-                                <th>面试次数</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dailyStatsBody">
-                            <tr>
-                                <td colspan="6" style="text-align: center; color: #6c757d;">暂无数据</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 详细日志标签页 -->
-                <div id="detailedTab" class="tab-content">
-                    <div class="date-filter">
-                        <label>查看日期：</label>
-                        <input type="date" id="logDate" onchange="loadDayLogs()">
-                        <button class="btn btn-info" onclick="loadTodayLogs()">今天</button>
-                        <button class="btn btn-success" onclick="loadAllLogs()">全部</button>
-                    </div>
-                    <div class="usage-log" id="usageLog">
-                        <div style="padding: 20px; text-align: center; color: #6c757d;">
-                            选择日期查看详细日志
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 数据导出标签页 -->
-                <div id="exportTab" class="tab-content">
-                    <div class="export-section">
-                        <h4>📤 数据导出</h4>
-                        <div class="control-buttons">
-                            <button class="btn btn-info" onclick="exportToJSON()">导出JSON格式</button>
-                            <button class="btn btn-success" onclick="exportToCSV()">导出CSV格式</button>
-                            <button class="btn btn-info" onclick="exportDailyStats()">导出每日统计</button>
-                        </div>
-                        <br>
-                        <h4>🗑️ 数据管理</h4>
-                        <div class="control-buttons">
-                            <button class="btn btn-danger" onclick="clearOldData()">清理30天前数据</button>
-                            <button class="btn btn-danger" onclick="resetAllData()">重置所有数据</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <button onclick="saveApiKeys()">保存配置</button>
+            <small style="color: #666; display: block; margin-top: 16px;">
+                💡 只有OpenAI Key是必需的。ElevenLabs Key可以获得更好的语音体验
+            </small>
         </div>
 
-        <!-- 用户模式界面 -->
-        <div class="user-interface">
-            <div class="settings-panel">
-                <h3>🎛️ 面试官设置</h3>
-                <div class="voice-settings">
-                    <select id="interviewerStyle">
-                        <option value="professional">专业严谨型</option>
-                        <option value="friendly" selected>友好鼓励型</option>
-                        <option value="pressure">压力测试型</option>
-                        <option value="creative">创意开放型</option>
-                    </select>
-                    <select id="voiceStyle">
-                        <option value="alloy">Alloy (中性)</option>
-                        <option value="echo">Echo (男性)</option>
-                        <option value="fable">Fable (英国口音)</option>
-                        <option value="onyx">Onyx (深沉)</option>
-                        <option value="nova" selected>Nova (女性)</option>
-                        <option value="shimmer">Shimmer (柔和)</option>
-                    </select>
-                    <select id="difficulty">
-                        <option value="beginner">初级难度</option>
-                        <option value="intermediate" selected>中级难度</option>
-                        <option value="advanced">高级难度</option>
-                        <option value="expert">专家难度</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="chat-area" id="chatArea">
-                <div class="message interviewer">
-                    <strong>🎭 AI面试官 Sarah：</strong>
-                    <span id="welcomeMessage">
-                    欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。
-                    <br><br>
-                    🎯 <strong>即开即用</strong> - 无需任何配置，立即开始专业面试体验
-                    <br>🤖 <strong>GPT-4.1驱动</strong> - 最先进的AI推理引擎
-                    <br>🎵 <strong>真人语音</strong> - 接近真实面试官的语音交互
-                    <br>📊 <strong>专业评估</strong> - 多维度面试表现分析
-                    <br><br>
-                    请选择您想要的面试风格和难度，然后点击"开始面试"！
-                    </span>
-                    <div class="voice-controls">
-                        <button class="voice-btn" onclick="playWelcomeMessage()">🔊 听语音欢迎</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="input-area">
-                <textarea id="userInput" placeholder="在这里输入您的回答，或点击语音按钮说话..." disabled></textarea>
-                <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>
-                    📤 发送回答
-                </button>
-            </div>
-
-            <div class="controls">
-                <button onclick="startInterview()" id="startBtn">🎯 开始面试</button>
-                <button onclick="generateReport()" id="reportBtn" disabled>📊 生成报告</button>
-                <button onclick="endInterview()" id="endBtn" disabled>🏁 结束面试</button>
-                <button onclick="clearChat()">🗑️ 清空对话</button>
-            </div>
-
-            <div class="loading" id="loading">
-                <div class="audio-indicator" id="audioIndicator">🎵 正在生成语音...</div>
-                🤖 AI面试官正在深度思考中...
+        <div class="settings-panel">
+            <h3>🎛️ 面试官设置</h3>
+            <div class="voice-settings">
+                <select id="interviewerStyle">
+                    <option value="professional">专业严谨型</option>
+                    <option value="friendly" selected>友好鼓励型</option>
+                    <option value="pressure">压力测试型</option>
+                    <option value="creative">创意开放型</option>
+                </select>
+                <select id="voiceStyle">
+                    <option value="alloy">Alloy (中性)</option>
+                    <option value="echo">Echo (男性)</option>
+                    <option value="fable">Fable (英国口音)</option>
+                    <option value="onyx">Onyx (深沉)</option>
+                    <option value="nova" selected>Nova (女性)</option>
+                    <option value="shimmer">Shimmer (柔和)</option>
+                </select>
+                <select id="difficulty">
+                    <option value="beginner">初级难度</option>
+                    <option value="intermediate" selected>中级难度</option>
+                    <option value="advanced">高级难度</option>
+                    <option value="expert">专家难度</option>
+                </select>
             </div>
         </div>
 
         <div id="statusMessage" style="display: none;"></div>
+
+        <div class="chat-area" id="chatArea">
+            <div class="message interviewer">
+                <strong>🎭 AI面试官 Sarah：</strong>
+                <span id="welcomeMessage">
+                欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah，搭载了最强大的GPT-4.1推理引擎和ElevenLabs语音技术。
+                <br><br>
+                我能够：
+                <br>• 🧠 进行深度逻辑分析和追问
+                <br>• 🎯 根据您的回答动态调整面试策略  
+                <br>• 🗣️ 提供接近真人的语音交互体验
+                <br>• 📊 生成专业的面试评估报告
+                <br><br>
+                请选择面试风格和难度，然后点击"开始面试"开始我们的专业面试！
+                </span>
+                <div class="voice-controls">
+                    <button class="voice-btn" onclick="playWelcomeMessage()">🔊 听语音欢迎</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <textarea id="userInput" placeholder="在这里输入您的回答，或点击语音按钮说话..." disabled></textarea>
+            <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>
+                📤 发送回答
+            </button>
+        </div>
+
+        <div class="controls">
+            <button onclick="startInterview()" id="startBtn">🎯 开始面试</button>
+            <button onclick="generateReport()" id="reportBtn" disabled>📊 生成报告</button>
+            <button onclick="endInterview()" id="endBtn" disabled>🏁 结束面试</button>
+            <button onclick="clearChat()">🗑️ 清空对话</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="audio-indicator" id="audioIndicator">🎵 正在生成语音...</div>
+            🤖 AI面试官正在深度思考中...
+        </div>
         
-        <!-- 模式切换 -->
+        <!-- 开发者模式入口 -->
         <div style="text-align: center; margin-top: 20px; padding: 20px;">
             <a href="?dev=true" style="color: #999; font-size: 12px; text-decoration: none;" id="devModeLink">
                 🔧 开发者模式
@@ -218,13 +105,15 @@
         </div>
     </div>
 
-    <!-- JavaScript文件引入 -->
+    <!-- ✅ 正确的外部文件引用 -->
     <script src="js/config.js"></script>
     <script src="js/security.js"></script>
     <script src="js/tokenMonitoring.js"></script>
-    <script src="js/apiManager.js"></script>
-    <script src="js/audioManager.js"></script>
-    <script src="js/interfaceManager.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- ❌ 已移除不存在的文件引用 -->
+    <!-- <script src="js/audioManager.js"></script> -->
+    <!-- <script src="js/interfaceManager.js"></script> -->
+    <!-- <script src="js/apiManager.js"></script> -->
 </body>
 </html>
