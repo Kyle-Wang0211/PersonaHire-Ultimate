@@ -26,8 +26,10 @@
             border-radius: 24px;
             padding: 48px;
             box-shadow: 0 32px 64px rgba(0,0,0,0.12);
-            max-width: 900px;
+            max-width: 1200px;
             width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .header {
@@ -109,16 +111,15 @@
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
         }
 
-        .token-stats {
+        .token-monitoring {
             background: linear-gradient(135deg, #e8f5e8, #d4edda);
             padding: 24px;
             border-radius: 16px;
             margin-bottom: 24px;
             border: 1px solid #c3e6cb;
-            display: none;
         }
 
-        .token-stats h3 {
+        .token-monitoring h3 {
             color: #155724;
             margin-bottom: 16px;
             display: flex;
@@ -128,8 +129,9 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
+            margin-bottom: 24px;
         }
 
         .stat-item {
@@ -141,7 +143,7 @@
         }
 
         .stat-value {
-            font-size: 1.8em;
+            font-size: 1.6em;
             font-weight: 700;
             color: #28a745;
             margin-bottom: 4px;
@@ -152,21 +154,195 @@
             color: #666;
         }
 
-        .reset-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
+        .monitoring-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 12px 20px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            margin-top: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .daily-stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .daily-stats-table th,
+        .daily-stats-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .daily-stats-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .daily-stats-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .usage-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .log-entry {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-entry:hover {
+            background: #f8f9fa;
+        }
+
+        .log-time {
+            font-size: 12px;
+            color: #6c757d;
+            font-family: monospace;
+        }
+
+        .log-tokens {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .log-type {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .developer-info {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            border: 1px solid #ffd93d;
+            text-align: center;
+        }
+
+        .developer-info h3 {
+            color: #856404;
+            margin-bottom: 12px;
+        }
+
+        .developer-info p {
+            color: #856404;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border-left: 6px solid #dc3545;
+        }
+
+        .success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border-left: 6px solid #28a745;
+        }
+
+        .user-interface {
+            display: block;
+        }
+
+        .developer-interface {
+            display: none;
+        }
+
+        /* 开发者模式专用样式 */
+        .dev-mode .user-interface {
+            display: none;
+        }
+
+        .dev-mode .developer-interface {
+            display: block;
+        }
+
+        .dev-mode .badge {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
         }
 
         .chat-area {
             border: 2px solid #f0f0f0;
             border-radius: 16px;
-            height: 500px;
+            height: 400px;
             overflow-y: auto;
             padding: 24px;
             margin-bottom: 24px;
@@ -240,7 +416,7 @@
             border: 2px solid #e0e0e0;
             border-radius: 16px;
             resize: vertical;
-            min-height: 100px;
+            min-height: 80px;
             font-size: 16px;
             font-family: inherit;
             transition: all 0.3s ease;
@@ -302,24 +478,6 @@
             font-size: 18px;
         }
 
-        .error {
-            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
-            color: #721c24;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 24px;
-            border-left: 6px solid #dc3545;
-        }
-
-        .success {
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
-            color: #155724;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 24px;
-            border-left: 6px solid #28a745;
-        }
-
         .audio-indicator {
             display: none;
             color: #ff4081;
@@ -352,118 +510,226 @@
             border-radius: 8px;
             font-size: 14px;
         }
+
+        .date-filter {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .date-filter input {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .export-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="mainContainer">
         <div class="header">
             <div class="badge" id="modeBadge">🚀 GPT-4.1 + ElevenLabs TTS</div>
             <h1>🎭 PersonaHire Ultimate</h1>
-            <p>顶级AI驱动的智能面试官 - 最强推理能力 + 真人语音</p>
+            <p id="headerDesc">顶级AI驱动的智能面试官 - 最强推理能力 + 真人语音</p>
         </div>
 
-        <div class="api-setup" id="apiSetup" style="display: none;">
-            <h3>🔑 API 配置 (开发者模式)</h3>
-            <div class="api-row">
-                <input type="password" id="openaiKey" placeholder="OpenAI API Key (sk-...)">
-                <input type="password" id="elevenKey" placeholder="ElevenLabs API Key (可选)">
+        <!-- 开发者模式专用界面 -->
+        <div class="developer-interface">
+            <div class="developer-info">
+                <h3>🔧 开发者监控中心</h3>
+                <p>完整的API配置和Token使用监控系统，包含详细的使用记录和每日统计。</p>
             </div>
-            <button onclick="saveApiKeys()">保存配置</button>
-            <small style="color: #666; display: block; margin-top: 16px;">
-                💡 只有OpenAI Key是必需的。ElevenLabs Key可以获得更好的语音体验
-            </small>
-        </div>
 
-        <!-- Token统计面板 (仅开发者模式) -->
-        <div class="token-stats" id="tokenStats">
-            <h3>📊 Token 使用统计</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="currentTokens">0</div>
-                    <div class="stat-label">本次面试</div>
+            <div class="api-setup">
+                <h3>🔑 API 密钥配置</h3>
+                <div class="api-row">
+                    <input type="password" id="openaiKey" placeholder="OpenAI API Key (sk-...)">
+                    <input type="password" id="elevenKey" placeholder="ElevenLabs API Key (可选)">
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalTokens">0</div>
-                    <div class="stat-label">总计使用</div>
+                <button onclick="saveApiKeys()">保存配置</button>
+                <small style="color: #666; display: block; margin-top: 16px;">
+                    💡 只有OpenAI Key是必需的。ElevenLabs Key可以获得更好的语音体验
+                </small>
+            </div>
+
+            <div class="token-monitoring">
+                <h3>📊 Token 使用监控系统</h3>
+                
+                <!-- 实时统计 -->
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="currentTokens">0</div>
+                        <div class="stat-label">本次面试</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="todayTokens">0</div>
+                        <div class="stat-label">今日总计</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="todayCalls">0</div>
+                        <div class="stat-label">今日调用</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalTokens">0</div>
+                        <div class="stat-label">累计总量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalCost">$0.00</div>
+                        <div class="stat-label">累计费用</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="avgDaily">0</div>
+                        <div class="stat-label">日均使用</div>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="avgTokens">0</div>
-                    <div class="stat-label">平均每次</div>
+
+                <!-- 监控标签页 -->
+                <div class="monitoring-tabs">
+                    <button class="tab-btn active" onclick="switchTab('daily')">📅 每日统计</button>
+                    <button class="tab-btn" onclick="switchTab('detailed')">📋 详细日志</button>
+                    <button class="tab-btn" onclick="switchTab('export')">📤 数据导出</button>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalCost">$0.00</div>
-                    <div class="stat-label">估计费用</div>
+
+                <!-- 每日统计标签页 -->
+                <div id="dailyTab" class="tab-content active">
+                    <div class="date-filter">
+                        <label>日期范围：</label>
+                        <input type="date" id="startDate">
+                        <span>至</span>
+                        <input type="date" id="endDate">
+                        <button class="btn btn-info" onclick="filterByDate()">筛选</button>
+                        <button class="btn btn-success" onclick="loadAllDays()">显示全部</button>
+                    </div>
+                    <table class="daily-stats-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>API调用次数</th>
+                                <th>Token消耗</th>
+                                <th>估计费用</th>
+                                <th>平均每次</th>
+                                <th>面试次数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyStatsBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: #6c757d;">暂无数据</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 详细日志标签页 -->
+                <div id="detailedTab" class="tab-content">
+                    <div class="date-filter">
+                        <label>查看日期：</label>
+                        <input type="date" id="logDate" onchange="loadDayLogs()">
+                        <button class="btn btn-info" onclick="loadTodayLogs()">今天</button>
+                        <button class="btn btn-success" onclick="loadAllLogs()">全部</button>
+                    </div>
+                    <div class="usage-log" id="usageLog">
+                        <div style="padding: 20px; text-align: center; color: #6c757d;">
+                            选择日期查看详细日志
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据导出标签页 -->
+                <div id="exportTab" class="tab-content">
+                    <div class="export-section">
+                        <h4>📤 数据导出</h4>
+                        <div class="control-buttons">
+                            <button class="btn btn-info" onclick="exportToJSON()">导出JSON格式</button>
+                            <button class="btn btn-success" onclick="exportToCSV()">导出CSV格式</button>
+                            <button class="btn btn-info" onclick="exportDailyStats()">导出每日统计</button>
+                        </div>
+                        <br>
+                        <h4>🗑️ 数据管理</h4>
+                        <div class="control-buttons">
+                            <button class="btn btn-danger" onclick="clearOldData()">清理30天前数据</button>
+                            <button class="btn btn-danger" onclick="resetAllData()">重置所有数据</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <button class="reset-btn" onclick="resetTokenStats()">重置统计</button>
         </div>
 
-        <div class="settings-panel">
-            <h3>🎛️ 面试官设置</h3>
-            <div class="voice-settings">
-                <select id="interviewerStyle">
-                    <option value="professional">专业严谨型</option>
-                    <option value="friendly" selected>友好鼓励型</option>
-                    <option value="pressure">压力测试型</option>
-                    <option value="creative">创意开放型</option>
-                </select>
-                <select id="voiceStyle">
-                    <option value="alloy">Alloy (中性)</option>
-                    <option value="echo">Echo (男性)</option>
-                    <option value="fable">Fable (英国口音)</option>
-                    <option value="onyx">Onyx (深沉)</option>
-                    <option value="nova" selected>Nova (女性)</option>
-                    <option value="shimmer">Shimmer (柔和)</option>
-                </select>
-                <select id="difficulty">
-                    <option value="beginner">初级难度</option>
-                    <option value="intermediate" selected>中级难度</option>
-                    <option value="advanced">高级难度</option>
-                    <option value="expert">专家难度</option>
-                </select>
+        <!-- 用户模式界面 -->
+        <div class="user-interface">
+            <div class="settings-panel">
+                <h3>🎛️ 面试官设置</h3>
+                <div class="voice-settings">
+                    <select id="interviewerStyle">
+                        <option value="professional">专业严谨型</option>
+                        <option value="friendly" selected>友好鼓励型</option>
+                        <option value="pressure">压力测试型</option>
+                        <option value="creative">创意开放型</option>
+                    </select>
+                    <select id="voiceStyle">
+                        <option value="alloy">Alloy (中性)</option>
+                        <option value="echo">Echo (男性)</option>
+                        <option value="fable">Fable (英国口音)</option>
+                        <option value="onyx">Onyx (深沉)</option>
+                        <option value="nova" selected>Nova (女性)</option>
+                        <option value="shimmer">Shimmer (柔和)</option>
+                    </select>
+                    <select id="difficulty">
+                        <option value="beginner">初级难度</option>
+                        <option value="intermediate" selected>中级难度</option>
+                        <option value="advanced">高级难度</option>
+                        <option value="expert">专家难度</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="chat-area" id="chatArea">
+                <div class="message interviewer">
+                    <strong>🎭 AI面试官 Sarah：</strong>
+                    <span id="welcomeMessage">
+                    欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。
+                    <br><br>
+                    🎯 <strong>即开即用</strong> - 无需任何配置，立即开始专业面试体验
+                    <br>🤖 <strong>GPT-4.1驱动</strong> - 最先进的AI推理引擎
+                    <br>🎵 <strong>真人语音</strong> - 接近真实面试官的语音交互
+                    <br>📊 <strong>专业评估</strong> - 多维度面试表现分析
+                    <br><br>
+                    请选择您想要的面试风格和难度，然后点击"开始面试"！
+                    </span>
+                    <div class="voice-controls">
+                        <button class="voice-btn" onclick="playWelcomeMessage()">🔊 听语音欢迎</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <textarea id="userInput" placeholder="在这里输入您的回答，或点击语音按钮说话..." disabled></textarea>
+                <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>
+                    📤 发送回答
+                </button>
+            </div>
+
+            <div class="controls">
+                <button onclick="startInterview()" id="startBtn">🎯 开始面试</button>
+                <button onclick="generateReport()" id="reportBtn" disabled>📊 生成报告</button>
+                <button onclick="endInterview()" id="endBtn" disabled>🏁 结束面试</button>
+                <button onclick="clearChat()">🗑️ 清空对话</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="audio-indicator" id="audioIndicator">🎵 正在生成语音...</div>
+                🤖 AI面试官正在深度思考中...
             </div>
         </div>
 
         <div id="statusMessage" style="display: none;"></div>
-
-        <div class="chat-area" id="chatArea">
-            <div class="message interviewer">
-                <strong>🎭 AI面试官 Sarah：</strong>
-                <span id="welcomeMessage">
-                欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah，搭载了最强大的GPT-4.1推理引擎和ElevenLabs语音技术。
-                <br><br>
-                我能够：
-                <br>• 🧠 进行深度逻辑分析和追问
-                <br>• 🎯 根据您的回答动态调整面试策略  
-                <br>• 🗣️ 提供接近真人的语音交互体验
-                <br>• 📊 生成专业的面试评估报告
-                <br><br>
-                请选择面试风格和难度，然后点击"开始面试"开始我们的专业面试！
-                </span>
-                <div class="voice-controls">
-                    <button class="voice-btn" onclick="playWelcomeMessage()">🔊 听语音欢迎</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="input-area">
-            <textarea id="userInput" placeholder="在这里输入您的回答，或点击语音按钮说话..." disabled></textarea>
-            <button class="send-btn" onclick="sendMessage()" id="sendBtn" disabled>
-                📤 发送回答
-            </button>
-        </div>
-
-        <div class="controls">
-            <button onclick="startInterview()" id="startBtn">🎯 开始面试</button>
-            <button onclick="generateReport()" id="reportBtn" disabled>📊 生成报告</button>
-            <button onclick="endInterview()" id="endBtn" disabled>🏁 结束面试</button>
-            <button onclick="clearChat()">🗑️ 清空对话</button>
-        </div>
-
-        <div class="loading" id="loading">
-            <div class="audio-indicator" id="audioIndicator">🎵 正在生成语音...</div>
-            🤖 AI面试官正在深度思考中...
-        </div>
         
         <!-- 模式切换 -->
         <div style="text-align: center; margin-top: 20px; padding: 20px;">
@@ -486,62 +752,465 @@
         
         // Token统计变量
         let currentInterviewTokens = 0;
-        let totalTokensUsed = 0;
-        let interviewCount = 0;
+        let currentInterviewStartTime = null;
         
         // 模式检测
         const isDeveloperMode = window.location.search.includes('dev=true');
         
-        // 预设API密钥（请替换为你的实际密钥）
+        // 预设API密钥
         const DEFAULT_OPENAI_KEY = "your-openai-api-key-here";
         const DEFAULT_ELEVEN_KEY = "your-elevenlabs-api-key-here";
 
-        // Token统计功能
-        function updateTokenStats(tokensUsed) {
-            currentInterviewTokens += tokensUsed;
-            totalTokensUsed += tokensUsed;
-            
-            // 更新显示
-            document.getElementById('currentTokens').textContent = currentInterviewTokens.toLocaleString();
-            document.getElementById('totalTokens').textContent = totalTokensUsed.toLocaleString();
-            
-            // 计算平均值
-            const avgTokens = interviewCount > 0 ? Math.round(totalTokensUsed / interviewCount) : 0;
-            document.getElementById('avgTokens').textContent = avgTokens.toLocaleString();
-            
-            // 估计费用 (GPT-4: $0.03/1K input tokens, $0.06/1K output tokens, 简化按$0.04/1K计算)
-            const estimatedCost = (totalTokensUsed / 1000) * 0.04;
-            document.getElementById('totalCost').textContent = `$${estimatedCost.toFixed(3)}`;
-            
-            // 保存到localStorage
-            if (isDeveloperMode) {
-                localStorage.setItem('token_stats', JSON.stringify({
-                    totalTokens: totalTokensUsed,
-                    interviewCount: interviewCount
-                }));
+        // Token监控数据库类
+        class TokenDatabase {
+            constructor() {
+                this.storageKey = 'personahire_token_db';
+                this.initDatabase();
             }
-        }
 
-        function resetTokenStats() {
-            currentInterviewTokens = 0;
-            totalTokensUsed = 0;
-            interviewCount = 0;
-            updateTokenStats(0);
-            if (isDeveloperMode) {
-                localStorage.removeItem('token_stats');
-            }
-        }
-
-        function loadTokenStats() {
-            if (isDeveloperMode) {
-                const saved = localStorage.getItem('token_stats');
-                if (saved) {
-                    const stats = JSON.parse(saved);
-                    totalTokensUsed = stats.totalTokens || 0;
-                    interviewCount = stats.interviewCount || 0;
-                    updateTokenStats(0);
+            initDatabase() {
+                const data = localStorage.getItem(this.storageKey);
+                if (!data) {
+                    this.saveDatabase({
+                        usage_logs: [],
+                        daily_stats: {},
+                        metadata: {
+                            created: new Date().toISOString(),
+                            version: '1.0'
+                        }
+                    });
                 }
             }
+
+            getDatabase() {
+                const data = localStorage.getItem(this.storageKey);
+                return data ? JSON.parse(data) : null;
+            }
+
+            saveDatabase(data) {
+                localStorage.setItem(this.storageKey, JSON.stringify(data));
+            }
+
+            logUsage(tokens, type = 'chat') {
+                const db = this.getDatabase();
+                const now = new Date();
+                const timestamp = now.toISOString();
+                const dateKey = now.toISOString().split('T')[0];
+                const cost = (tokens / 1000) * 0.04; // GPT-4简化计费
+
+                // 添加到使用日志
+                const logEntry = {
+                    timestamp,
+                    tokens,
+                    type,
+                    cost: parseFloat(cost.toFixed(4))
+                };
+                db.usage_logs.push(logEntry);
+
+                // 更新每日统计
+                if (!db.daily_stats[dateKey]) {
+                    db.daily_stats[dateKey] = {
+                        date: dateKey,
+                        total_tokens: 0,
+                        total_calls: 0,
+                        total_cost: 0,
+                        interview_count: 0,
+                        calls: []
+                    };
+                }
+
+                const dayStats = db.daily_stats[dateKey];
+                dayStats.total_tokens += tokens;
+                dayStats.total_calls += 1;
+                dayStats.total_cost += cost;
+                dayStats.calls.push(logEntry);
+
+                // 如果是面试开始，增加面试计数
+                if (type === 'interview_start') {
+                    dayStats.interview_count += 1;
+                }
+
+                this.saveDatabase(db);
+                return logEntry;
+            }
+
+            getTodayStats() {
+                const db = this.getDatabase();
+                const today = new Date().toISOString().split('T')[0];
+                return db.daily_stats[today] || {
+                    total_tokens: 0,
+                    total_calls: 0,
+                    total_cost: 0,
+                    interview_count: 0
+                };
+            }
+
+            getAllStats() {
+                const db = this.getDatabase();
+                let totalTokens = 0;
+                let totalCalls = 0;
+                let totalCost = 0;
+                let totalInterviews = 0;
+                const days = Object.keys(db.daily_stats);
+
+                days.forEach(day => {
+                    const stats = db.daily_stats[day];
+                    totalTokens += stats.total_tokens;
+                    totalCalls += stats.total_calls;
+                    totalCost += stats.total_cost;
+                    totalInterviews += stats.interview_count;
+                });
+
+                return {
+                    totalTokens,
+                    totalCalls,
+                    totalCost,
+                    totalInterviews,
+                    activeDays: days.length,
+                    avgDaily: days.length > 0 ? Math.round(totalTokens / days.length) : 0
+                };
+            }
+
+            getDailyStats(startDate = null, endDate = null) {
+                const db = this.getDatabase();
+                let stats = Object.values(db.daily_stats);
+                
+                if (startDate && endDate) {
+                    stats = stats.filter(day => 
+                        day.date >= startDate && day.date <= endDate
+                    );
+                }
+                
+                return stats.sort((a, b) => b.date.localeCompare(a.date));
+            }
+
+            getDayLogs(date) {
+                const db = this.getDatabase();
+                const dayStats = db.daily_stats[date];
+                return dayStats ? dayStats.calls : [];
+            }
+
+            getAllLogs() {
+                const db = this.getDatabase();
+                return db.usage_logs.sort((a, b) => 
+                    new Date(b.timestamp) - new Date(a.timestamp)
+                );
+            }
+
+            clearOldData(daysToKeep = 30) {
+                const db = this.getDatabase();
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+                const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+                // 清理每日统计
+                Object.keys(db.daily_stats).forEach(date => {
+                    if (date < cutoffStr) {
+                        delete db.daily_stats[date];
+                    }
+                });
+
+                // 清理使用日志
+                db.usage_logs = db.usage_logs.filter(log => 
+                    log.timestamp.split('T')[0] >= cutoffStr
+                );
+
+                this.saveDatabase(db);
+            }
+
+            resetAll() {
+                this.saveDatabase({
+                    usage_logs: [],
+                    daily_stats: {},
+                    metadata: {
+                        created: new Date().toISOString(),
+                        version: '1.0'
+                    }
+                });
+            }
+
+            exportData() {
+                return this.getDatabase();
+            }
+        }
+
+        // 初始化Token数据库
+        const tokenDB = new TokenDatabase();
+
+        // Token统计功能
+        function updateTokenStats(tokensUsed, type = 'chat') {
+            currentInterviewTokens += tokensUsed;
+            
+            // 记录到数据库
+            tokenDB.logUsage(tokensUsed, type);
+            
+            if (isDeveloperMode) {
+                refreshAllStats();
+            }
+        }
+
+        function refreshAllStats() {
+            const todayStats = tokenDB.getTodayStats();
+            const allStats = tokenDB.getAllStats();
+
+            // 更新实时显示
+            document.getElementById('currentTokens').textContent = currentInterviewTokens.toLocaleString();
+            document.getElementById('todayTokens').textContent = todayStats.total_tokens.toLocaleString();
+            document.getElementById('todayCalls').textContent = todayStats.total_calls.toLocaleString();
+            document.getElementById('totalTokens').textContent = allStats.totalTokens.toLocaleString();
+            document.getElementById('totalCost').textContent = `$${allStats.totalCost.toFixed(3)}`;
+            document.getElementById('avgDaily').textContent = allStats.avgDaily.toLocaleString();
+
+            // 刷新当前显示的表格
+            const activeTab = document.querySelector('.tab-btn.active').textContent.includes('每日') ? 'daily' : 
+                             document.querySelector('.tab-btn.active').textContent.includes('详细') ? 'detailed' : 'export';
+            
+            if (activeTab === 'daily') {
+                loadAllDays();
+            } else if (activeTab === 'detailed') {
+                const logDate = document.getElementById('logDate').value;
+                if (logDate) {
+                    loadDayLogs();
+                }
+            }
+        }
+
+        // 标签页切换
+        function switchTab(tab) {
+            // 切换按钮状态
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // 切换内容
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tab + 'Tab').classList.add('active');
+
+            // 加载对应内容
+            if (tab === 'daily') {
+                loadAllDays();
+            } else if (tab === 'detailed') {
+                loadTodayLogs();
+            }
+        }
+
+        // 加载每日统计
+        function loadAllDays() {
+            const dailyStats = tokenDB.getDailyStats();
+            const tbody = document.getElementById('dailyStatsBody');
+            
+            if (dailyStats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6c757d;">暂无数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = dailyStats.map(day => `
+                <tr>
+                    <td>${formatDate(day.date)}</td>
+                    <td>${day.total_calls}</td>
+                    <td>${day.total_tokens.toLocaleString()}</td>
+                    <td>$${day.total_cost.toFixed(3)}</td>
+                    <td>${Math.round(day.total_tokens / day.total_calls)}</td>
+                    <td>${day.interview_count}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 按日期筛选
+        function filterByDate() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('请选择开始和结束日期');
+                return;
+            }
+
+            const dailyStats = tokenDB.getDailyStats(startDate, endDate);
+            const tbody = document.getElementById('dailyStatsBody');
+            
+            if (dailyStats.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6c757d;">选定时间范围内无数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = dailyStats.map(day => `
+                <tr>
+                    <td>${formatDate(day.date)}</td>
+                    <td>${day.total_calls}</td>
+                    <td>${day.total_tokens.toLocaleString()}</td>
+                    <td>$${day.total_cost.toFixed(3)}</td>
+                    <td>${Math.round(day.total_tokens / day.total_calls)}</td>
+                    <td>${day.interview_count}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 加载今天的日志
+        function loadTodayLogs() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('logDate').value = today;
+            loadDayLogs();
+        }
+
+        // 加载指定日期的日志
+        function loadDayLogs() {
+            const date = document.getElementById('logDate').value;
+            if (!date) return;
+
+            const logs = tokenDB.getDayLogs(date);
+            const logContainer = document.getElementById('usageLog');
+            
+            if (logs.length === 0) {
+                logContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c757d;">该日期无使用记录</div>';
+                return;
+            }
+
+            logContainer.innerHTML = logs.map(log => `
+                <div class="log-entry">
+                    <div>
+                        <div class="log-time">${formatFullTime(log.timestamp)}</div>
+                        <div style="margin-top: 4px;">
+                            <span class="log-type">${getTypeLabel(log.type)}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="log-tokens">${log.tokens.toLocaleString()} tokens</div>
+                        <div style="font-size: 12px; color: #6c757d;">$${log.cost.toFixed(4)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 加载所有日志
+        function loadAllLogs() {
+            const logs = tokenDB.getAllLogs();
+            const logContainer = document.getElementById('usageLog');
+            
+            if (logs.length === 0) {
+                logContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #6c757d;">暂无使用记录</div>';
+                return;
+            }
+
+            // 只显示最近100条记录
+            const recentLogs = logs.slice(0, 100);
+            
+            logContainer.innerHTML = recentLogs.map(log => `
+                <div class="log-entry">
+                    <div>
+                        <div class="log-time">${formatFullTime(log.timestamp)}</div>
+                        <div style="margin-top: 4px;">
+                            <span class="log-type">${getTypeLabel(log.type)}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="log-tokens">${log.tokens.toLocaleString()} tokens</div>
+                        <div style="font-size: 12px; color: #6c757d;">$${log.cost.toFixed(4)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 数据导出功能
+        function exportToJSON() {
+            const data = tokenDB.exportData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            downloadFile(blob, `personahire-token-data-${new Date().toISOString().split('T')[0]}.json`);
+        }
+
+        function exportToCSV() {
+            const logs = tokenDB.getAllLogs();
+            const csv = [
+                ['时间', 'Token数量', '类型', '费用'],
+                ...logs.map(log => [
+                    log.timestamp,
+                    log.tokens,
+                    log.type,
+                    log.cost.toFixed(4)
+                ])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            downloadFile(blob, `personahire-usage-logs-${new Date().toISOString().split('T')[0]}.csv`);
+        }
+
+        function exportDailyStats() {
+            const dailyStats = tokenDB.getDailyStats();
+            const csv = [
+                ['日期', 'API调用次数', 'Token消耗', '费用', '面试次数'],
+                ...dailyStats.map(day => [
+                    day.date,
+                    day.total_calls,
+                    day.total_tokens,
+                    day.total_cost.toFixed(4),
+                    day.interview_count
+                ])
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            downloadFile(blob, `personahire-daily-stats-${new Date().toISOString().split('T')[0]}.csv`);
+        }
+
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 数据管理功能
+        function clearOldData() {
+            if (confirm('确定要清理30天前的数据吗？此操作不可恢复。')) {
+                tokenDB.clearOldData(30);
+                refreshAllStats();
+                showMessage('✅ 已清理30天前的数据', 'success');
+            }
+        }
+
+        function resetAllData() {
+            if (confirm('确定要重置所有Token使用数据吗？此操作不可恢复！')) {
+                tokenDB.resetAll();
+                currentInterviewTokens = 0;
+                refreshAllStats();
+                showMessage('✅ 所有数据已重置', 'success');
+            }
+        }
+
+        // 工具函数
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                weekday: 'short'
+            });
+        }
+
+        function formatFullTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        }
+
+        function getTypeLabel(type) {
+            const labels = {
+                'chat': '对话',
+                'report': '报告',
+                'interview_start': '开始面试',
+                'tts': '语音合成'
+            };
+            return labels[type] || type;
         }
 
         // 面试官人设库 - 精简版
@@ -571,8 +1240,7 @@
                 if (elevenKey) {
                     localStorage.setItem('eleven_api_key', elevenKey);
                 }
-                showMessage('✅ API配置保存成功！现在可以开始终极面试体验了。', 'success');
-                document.getElementById('startBtn').disabled = false;
+                showMessage('✅ API配置保存成功！', 'success');
             } else {
                 showError('请输入有效的OpenAI API Key (以sk-开头)');
             }
@@ -580,13 +1248,12 @@
         
         function initializeApiKeys() {
             if (isDeveloperMode) {
-                // 开发者模式：显示API配置和Token统计
-                document.getElementById('apiSetup').style.display = 'block';
-                document.getElementById('tokenStats').style.display = 'block';
+                // 开发者模式：显示开发者界面
+                document.getElementById('mainContainer').className = 'container dev-mode';
                 document.getElementById('devModeLink').textContent = '👤 用户模式';
                 document.getElementById('devModeLink').href = './';
-                document.getElementById('modeBadge').textContent = '🔧 开发者模式';
-                document.getElementById('modeBadge').style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+                document.getElementById('modeBadge').textContent = '🔧 开发者监控中心';
+                document.getElementById('headerDesc').textContent = 'API配置和详细Token使用监控系统';
                 
                 const savedOpenaiKey = localStorage.getItem('openai_api_key');
                 const savedElevenKey = localStorage.getItem('eleven_api_key');
@@ -594,7 +1261,6 @@
                 if (savedOpenaiKey) {
                     document.getElementById('openaiKey').value = savedOpenaiKey;
                     openaiKey = savedOpenaiKey;
-                    document.getElementById('startBtn').disabled = false;
                 }
                 
                 if (savedElevenKey) {
@@ -602,12 +1268,19 @@
                     elevenKey = savedElevenKey;
                 }
                 
+                // 初始化日期筛选器
+                const today = new Date().toISOString().split('T')[0];
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
+                document.getElementById('endDate').value = today;
+                document.getElementById('logDate').value = today;
+                
                 // 加载Token统计
-                loadTokenStats();
+                refreshAllStats();
             } else {
-                // 用户模式：隐藏API配置和Token统计
-                document.getElementById('apiSetup').style.display = 'none';
-                document.getElementById('tokenStats').style.display = 'none';
+                // 用户模式：显示用户界面
+                document.getElementById('mainContainer').className = 'container';
                 document.getElementById('modeBadge').textContent = '✨ 即开即用版';
                 document.getElementById('modeBadge').style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
                 openaiKey = DEFAULT_OPENAI_KEY;
@@ -619,25 +1292,6 @@
                 } else {
                     showMessage('⚠️ 系统正在维护中，请稍后再试或联系管理员。', 'error');
                 }
-                
-                // 更新欢迎消息
-                updateWelcomeMessage();
-            }
-        }
-        
-        function updateWelcomeMessage() {
-            if (!isDeveloperMode) {
-                const welcomeMsg = document.getElementById('welcomeMessage');
-                welcomeMsg.innerHTML = `
-                欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。
-                <br><br>
-                🎯 <strong>即开即用</strong> - 无需任何配置，立即开始专业面试体验
-                <br>🤖 <strong>GPT-4.1驱动</strong> - 最先进的AI推理引擎
-                <br>🎵 <strong>真人语音</strong> - 接近真实面试官的语音交互
-                <br>📊 <strong>专业评估</strong> - 多维度面试表现分析
-                <br><br>
-                请选择您想要的面试风格和难度，然后点击"开始面试"！
-                `;
             }
         }
 
@@ -680,9 +1334,9 @@
             const data = await response.json();
             
             // 统计Token使用量
-            if (isDeveloperMode && data.usage) {
+            if (data.usage) {
                 const tokensUsed = data.usage.total_tokens;
-                updateTokenStats(tokensUsed);
+                updateTokenStats(tokensUsed, 'chat');
             }
             
             return data.choices[0].message.content;
@@ -700,7 +1354,7 @@
                         },
                         body: JSON.stringify({
                             model: 'tts-1',
-                            voice: document.getElementById('voiceStyle').value,
+                            voice: document.getElementById('voiceStyle')?.value || 'nova',
                             input: text,
                             speed: 1.0
                         })
@@ -753,7 +1407,9 @@
             }
 
             const audioIndicator = document.getElementById('audioIndicator');
-            audioIndicator.style.display = 'block';
+            if (audioIndicator) {
+                audioIndicator.style.display = 'block';
+            }
 
             try {
                 const audioUrl = await generateSpeech(text);
@@ -768,7 +1424,9 @@
             } catch (error) {
                 console.log('Audio generation failed:', error);
             } finally {
-                audioIndicator.style.display = 'none';
+                if (audioIndicator) {
+                    audioIndicator.style.display = 'none';
+                }
             }
         }
 
@@ -778,8 +1436,8 @@
                 return;
             }
 
-            const style = document.getElementById('interviewerStyle').value;
-            const difficulty = document.getElementById('difficulty').value;
+            const style = document.getElementById('interviewerStyle')?.value || 'friendly';
+            const difficulty = document.getElementById('difficulty')?.value || 'intermediate';
 
             const systemPrompt = `${INTERVIEWER_PERSONALITIES[style]}
 
@@ -797,43 +1455,66 @@
 
             // 重置当前面试Token计数
             currentInterviewTokens = 0;
-            interviewCount++;
+            currentInterviewStartTime = new Date();
 
             // 限制对话历史长度，只保留系统提示词
             conversationHistory = [
                 { role: 'system', content: systemPrompt }
             ];
 
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('endBtn').disabled = false;
-            document.getElementById('reportBtn').disabled = false;
-            document.getElementById('userInput').disabled = false;
-            document.getElementById('sendBtn').disabled = false;
-            document.getElementById('loading').style.display = 'block';
+            if (document.getElementById('startBtn')) {
+                document.getElementById('startBtn').disabled = true;
+            }
+            if (document.getElementById('endBtn')) {
+                document.getElementById('endBtn').disabled = false;
+            }
+            if (document.getElementById('reportBtn')) {
+                document.getElementById('reportBtn').disabled = false;
+            }
+            if (document.getElementById('userInput')) {
+                document.getElementById('userInput').disabled = false;
+            }
+            if (document.getElementById('sendBtn')) {
+                document.getElementById('sendBtn').disabled = false;
+            }
+            if (document.getElementById('loading')) {
+                document.getElementById('loading').style.display = 'block';
+            }
 
             try {
                 const response = await callGPT41(conversationHistory);
-                addMessage(response, 'interviewer');
-                await playAudio(response);
+                // 标记面试开始
+                updateTokenStats(0, 'interview_start');
+                
+                if (!isDeveloperMode) {
+                    addMessage(response, 'interviewer');
+                    await playAudio(response);
+                }
                 interviewStarted = true;
             } catch (error) {
                 showError('启动面试失败: ' + error.message);
                 endInterview();
             } finally {
-                document.getElementById('loading').style.display = 'none';
+                if (document.getElementById('loading')) {
+                    document.getElementById('loading').style.display = 'none';
+                }
             }
         }
 
         async function sendMessage() {
             const userInput = document.getElementById('userInput');
-            const message = userInput.value.trim();
+            const message = userInput?.value?.trim();
 
             if (!message) return;
 
             addMessage(message, 'user');
             userInput.value = '';
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('sendBtn').disabled = true;
+            if (document.getElementById('loading')) {
+                document.getElementById('loading').style.display = 'block';
+            }
+            if (document.getElementById('sendBtn')) {
+                document.getElementById('sendBtn').disabled = true;
+            }
 
             conversationHistory.push({ role: 'user', content: message });
 
@@ -852,8 +1533,12 @@
                 showError('发送消息失败: ' + error.message);
                 addMessage('抱歉，我遇到了一些技术问题。请稍后再试。', 'interviewer');
             } finally {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('sendBtn').disabled = false;
+                if (document.getElementById('loading')) {
+                    document.getElementById('loading').style.display = 'none';
+                }
+                if (document.getElementById('sendBtn')) {
+                    document.getElementById('sendBtn').disabled = false;
+                }
             }
         }
 
@@ -863,7 +1548,9 @@
                 return;
             }
 
-            document.getElementById('loading').style.display = 'block';
+            if (document.getElementById('loading')) {
+                document.getElementById('loading').style.display = 'block';
+            }
 
             // 精简的报告生成提示词
             const reportPrompt = `基于以上面试对话，生成简洁的专业评估报告，包括：
@@ -883,7 +1570,15 @@
                     ...conversationHistory.slice(-8), // 最近4轮对话
                     { role: 'user', content: reportPrompt }
                 ];
+                
+                // 临时保存当前chat类型的tokens，报告生成时使用report类型
+                const originalUpdateFunction = updateTokenStats;
+                updateTokenStats = (tokens, type) => originalUpdateFunction(tokens, 'report');
+                
                 const report = await callGPT41(reportHistory);
+                
+                // 恢复原来的函数
+                updateTokenStats = originalUpdateFunction;
                 
                 addMessage(`📊 **面试评估报告**\n\n${report}`, 'interviewer');
                 await playAudio('您的面试评估报告已生成完成，请查看详细分析。');
@@ -892,12 +1587,16 @@
             } catch (error) {
                 showError('生成报告失败: ' + error.message);
             } finally {
-                document.getElementById('loading').style.display = 'none';
+                if (document.getElementById('loading')) {
+                    document.getElementById('loading').style.display = 'none';
+                }
             }
         }
 
         function addMessage(content, sender) {
             const chatArea = document.getElementById('chatArea');
+            if (!chatArea) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             
@@ -917,26 +1616,37 @@
 
         function endInterview() {
             interviewStarted = false;
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('endBtn').disabled = true;
-            document.getElementById('userInput').disabled = true;
-            document.getElementById('sendBtn').disabled = true;
+            if (document.getElementById('startBtn')) {
+                document.getElementById('startBtn').disabled = false;
+            }
+            if (document.getElementById('endBtn')) {
+                document.getElementById('endBtn').disabled = true;
+            }
+            if (document.getElementById('userInput')) {
+                document.getElementById('userInput').disabled = true;
+            }
+            if (document.getElementById('sendBtn')) {
+                document.getElementById('sendBtn').disabled = true;
+            }
             
             addMessage('面试结束，感谢您的参与！如需查看详细评估，请点击"生成报告"按钮。', 'interviewer');
             playAudio('面试结束，感谢您的参与！');
         }
 
         function clearChat() {
-            document.getElementById('chatArea').innerHTML = `
-                <div class="message interviewer">
-                    <strong>🎭 AI面试官 Sarah：</strong>
-                    欢迎来到PersonaHire Ultimate！我已准备好开始新的面试。请配置好设置后点击"开始面试"。
-                </div>
-            `;
+            const chatArea = document.getElementById('chatArea');
+            if (chatArea) {
+                chatArea.innerHTML = `
+                    <div class="message interviewer">
+                        <strong>🎭 AI面试官 Sarah：</strong>
+                        欢迎来到PersonaHire Ultimate！我已准备好开始新的面试。请配置好设置后点击"开始面试"。
+                    </div>
+                `;
+            }
             conversationHistory = [];
             currentInterviewTokens = 0;
             if (isDeveloperMode) {
-                document.getElementById('currentTokens').textContent = '0';
+                refreshAllStats();
             }
         }
 
@@ -951,12 +1661,15 @@
             initializeApiKeys();
 
             // 回车发送消息
-            document.getElementById('userInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
+            const userInput = document.getElementById('userInput');
+            if (userInput) {
+                userInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+            }
         });
     </script>
 </body>
