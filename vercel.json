@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "api/chat.js": {
+      "runtime": "@vercel/node"
+    },
+    "api/speech.js": {
+      "runtime": "@vercel/node"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    }
+  ]
+}
