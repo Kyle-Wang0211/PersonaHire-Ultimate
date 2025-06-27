@@ -1,428 +1,310 @@
-// 🛡️ PersonaHire Ultimate - 安全保护系统
-// 防止API滥用、模型限制、使用量监控
+// PersonaHire Ultimate - 安全管理模块
+// 负责输入验证、API安全、数据保护
 
 class SecurityManager {
     constructor() {
-        this.allowedModel = SECURITY_CONFIG.ALLOWED_MODELS[0]; // 默认gpt-4
-        this.maxTokensPerRequest = SECURITY_CONFIG.MAX_TOKENS_PER_REQUEST;
-        this.dailyTokenLimit = SECURITY_CONFIG.DAILY_TOKEN_LIMIT;
-        this.usageLog = [];
-        this.securityEvents = [];
-        this.isInitialized = false;
-        
-        this.init();
+        this.rateLimitMap = new Map();
+        this.blacklistedPatterns = [
+            /(?:hack|exploit|bypass|inject|script|eval|exec)/i,
+            /(?:password|secret|token|key|auth)/i,
+            /(?:<script|javascript:|data:|vbscript:)/i
+        ];
+        this.maxMessageLength = 2000;
+        this.maxMessagesPerMinute = 10;
+        this.suspiciousAttempts = 0;
+        this.maxSuspiciousAttempts = 5;
     }
-    
-    init() {
-        console.log('🛡️ 安全系统初始化...');
-        this.loadSecurityLogs();
-        this.validateEnvironment();
-        this.isInitialized = true;
-        console.log('✅ 安全系统已启用');
-    }
-    
-    // 🔒 主要API调用接口
-    async secureAPICall(messages, options = {}) {
-        try {
-            // 预检查
-            this.validateRequest(messages, options);
-            
-            // 使用量检查
-            await this.checkUsageLimits();
-            
-            // 构建安全请求
-            const requestData = this.buildSecureRequest(messages, options);
-            
-            // 发送请求
-            const response = await this.executeSecureRequest(requestData);
-            
-            // 验证响应
-            this.validateResponse(response);
-            
-            // 记录使用
-            this.logUsage(response);
-            
-            return response.choices[0].message.content;
-            
-        } catch (error) {
-            this.handleSecurityError(error);
-            throw error;
+
+    // 验证API密钥格式
+    validateApiKey(key, type = 'openai') {
+        if (!key || typeof key !== 'string') {
+            return { valid: false, error: 'API密钥不能为空' };
         }
-    }
-    
-    // 🔍 请求验证
-    validateRequest(messages, options) {
-        // 验证消息格式
-        if (!Array.isArray(messages) || messages.length === 0) {
-            throw new SecurityError('无效的消息格式', 'INVALID_MESSAGES');
-        }
-        
-        // 验证消息长度
-        const totalLength = messages.reduce((sum, msg) => sum + (msg.content?.length || 0), 0);
-        if (totalLength > 10000) {
-            this.logSecurityEvent('EXCESSIVE_INPUT_LENGTH', { length: totalLength });
-            throw new SecurityError('输入内容过长，为保护系统安全已拒绝', 'INPUT_TOO_LONG');
-        }
-        
-        // 验证模型参数
-        if (options.model && !SECURITY_CONFIG.ALLOWED_MODELS.includes(options.model)) {
-            this.logSecurityEvent('BLOCKED_MODEL_ATTEMPT', { model: options.model });
-            throw new SecurityError(`禁止使用模型: ${options.model}`, 'MODEL_BLOCKED');
-        }
-        
-        console.log('✅ 请求验证通过');
-    }
-    
-    // 📊 使用量检查
-    async checkUsageLimits() {
-        const todayUsage = this.getTodayUsage();
-        
-        // 检查每日限制
-        if (todayUsage > this.dailyTokenLimit) {
-            this.logSecurityEvent('DAILY_LIMIT_EXCEEDED', { usage: todayUsage, limit: this.dailyTokenLimit });
-            throw new SecurityError(
-                `已达到每日使用限制 (${todayUsage}/${this.dailyTokenLimit} tokens)`,
-                'DAILY_LIMIT_EXCEEDED'
-            );
-        }
-        
-        // 检查短期使用频率
-        const recentUsage = this.getRecentUsage(5); // 最近5分钟
-        if (recentUsage > 5000) {
-            this.logSecurityEvent('HIGH_FREQUENCY_USAGE', { usage: recentUsage });
-            console.warn('⚠️ 检测到高频使用，请适度使用');
-        }
-        
-        console.log(`📊 使用量检查通过: 今日 ${todayUsage}/${this.dailyTokenLimit} tokens`);
-    }
-    
-    // 🔧 构建安全请求
-    buildSecureRequest(messages, options) {
-        const requestData = {
-            model: this.allowedModel, // 强制使用安全模型
-            messages: messages,
-            max_tokens: Math.min(options.max_tokens || 800, this.maxTokensPerRequest),
-            temperature: Math.min(options.temperature || 0.7, 1.0),
-            presence_penalty: 0.1,
-            frequency_penalty: 0.1,
-            user: `PersonaHire-${Utils.generateId()}`,
-            // 添加安全标识
-            metadata: {
-                app: 'PersonaHire-Ultimate',
-                version: APP_CONFIG.version,
-                security: 'enabled',
-                timestamp: new Date().toISOString()
-            }
-        };
-        
-        console.log('🔧 安全请求构建完成:', { 
-            model: requestData.model, 
-            max_tokens: requestData.max_tokens 
-        });
-        
-        return requestData;
-    }
-    
-    // 🌐 执行安全请求
-    async executeSecureRequest(requestData) {
-        const startTime = Date.now();
-        
-        const response = await fetch(API_CONFIG.OPENAI_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${openaiKey}`,
-                'User-Agent': `${APP_CONFIG.name}/${APP_CONFIG.version}`,
-                'X-Security-Level': 'Protected',
-                'X-Request-Source': 'PersonaHire-Ultimate'
-            },
-            body: JSON.stringify(requestData)
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new APIError(
-                error.error?.message || '请求失败',
-                response.status,
-                error.error?.code
-            );
-        }
-        
-        const data = await response.json();
-        const responseTime = Date.now() - startTime;
-        
-        // 添加响应时间信息
-        data._responseTime = responseTime;
-        data._timestamp = new Date().toISOString();
-        
-        console.log(`🌐 API请求完成: ${responseTime}ms`);
-        return data;
-    }
-    
-    // ✅ 响应验证
-    validateResponse(data) {
-        // 验证响应结构
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            throw new SecurityError('API响应格式异常', 'INVALID_RESPONSE');
-        }
-        
-        // 验证模型
-        if (data.model && !data.model.includes('gpt-4')) {
-            this.logSecurityEvent('UNEXPECTED_MODEL_RESPONSE', { model: data.model });
-            console.warn('⚠️ 响应模型异常:', data.model);
-        }
-        
-        // 验证Token使用量
-        if (data.usage && data.usage.total_tokens > this.maxTokensPerRequest * 1.5) {
-            this.logSecurityEvent('EXCESSIVE_TOKEN_USAGE', { 
-                tokens: data.usage.total_tokens,
-                limit: this.maxTokensPerRequest 
-            });
-            console.warn('⚠️ Token使用量异常:', data.usage.total_tokens);
-        }
-        
-        console.log('✅ 响应验证通过');
-    }
-    
-    // 📝 记录使用
-    logUsage(data) {
-        if (!data.usage) return;
-        
-        const usageEntry = {
-            id: Utils.generateId(),
-            timestamp: data._timestamp || new Date().toISOString(),
-            model: data.model || this.allowedModel,
-            tokens: data.usage.total_tokens,
-            input_tokens: data.usage.prompt_tokens,
-            output_tokens: data.usage.completion_tokens,
-            cost: Utils.calculateCost(data.usage.total_tokens),
-            response_time: data._responseTime || 0,
-            status: 'success',
-            security_level: 'protected'
-        };
-        
-        this.usageLog.push(usageEntry);
-        
-        // 更新当前面试统计
-        if (typeof currentInterviewTokens !== 'undefined') {
-            currentInterviewTokens += data.usage.total_tokens;
-        }
-        
-        // 通知Token监控系统
-        if (typeof tokenDB !== 'undefined') {
-            tokenDB.logUsage(data.usage.total_tokens, 'protected-chat');
-        }
-        
-        console.log('📝 使用记录已保存:', usageEntry);
-    }
-    
-    // 🚨 安全事件记录
-    logSecurityEvent(eventType, details = {}) {
-        const securityEvent = {
-            id: Utils.generateId(),
-            timestamp: new Date().toISOString(),
-            type: eventType,
-            level: this.getEventLevel(eventType),
-            details: details,
-            user_agent: navigator.userAgent,
-            url: window.location.href,
-            session: this.getSessionId()
-        };
-        
-        this.securityEvents.push(securityEvent);
-        
-        // 保存到持久存储
-        this.saveSecurityLogs();
-        
-        // 根据级别进行不同处理
-        switch (securityEvent.level) {
-            case 'critical':
-                console.error('🚨 安全警报:', securityEvent);
-                this.notifySecurityAlert(securityEvent);
+
+        switch (type) {
+            case 'openai':
+                if (!key.startsWith('sk-') || key.length < 40) {
+                    return { valid: false, error: 'OpenAI API密钥格式无效' };
+                }
                 break;
-            case 'warning':
-                console.warn('⚠️ 安全警告:', securityEvent);
+            case 'elevenlabs':
+                if (key.length < 20) {
+                    return { valid: false, error: 'ElevenLabs API密钥格式无效' };
+                }
                 break;
-            default:
-                console.log('📋 安全事件:', securityEvent);
         }
+
+        return { valid: true };
     }
-    
-    // 🔍 获取事件级别
-    getEventLevel(eventType) {
-        const criticalEvents = ['DAILY_LIMIT_EXCEEDED', 'MODEL_BLOCKED', 'EXCESSIVE_TOKEN_USAGE'];
-        const warningEvents = ['HIGH_FREQUENCY_USAGE', 'UNEXPECTED_MODEL_RESPONSE'];
-        
-        if (criticalEvents.includes(eventType)) return 'critical';
-        if (warningEvents.includes(eventType)) return 'warning';
-        return 'info';
-    }
-    
-    // 🚨 安全警报通知
-    notifySecurityAlert(event) {
-        // 显示用户警告
-        if (typeof showMessage === 'function') {
-            showMessage(
-                `🚨 安全警报: ${event.type} - ${JSON.stringify(event.details)}`,
-                'error'
-            );
+
+    // 验证用户输入
+    validateUserInput(input) {
+        if (!input || typeof input !== 'string') {
+            return { valid: false, error: '输入不能为空' };
         }
-        
-        // 可以添加更多通知方式
-        // 例如：发送到监控系统、邮件通知等
-    }
-    
-    // 📊 使用统计方法
-    getTodayUsage() {
-        const today = new Date().toISOString().split('T')[0];
-        return this.usageLog
-            .filter(log => log.timestamp.startsWith(today))
-            .reduce((total, log) => total + log.tokens, 0);
-    }
-    
-    getRecentUsage(minutes) {
-        const cutoff = new Date(Date.now() - minutes * 60 * 1000);
-        return this.usageLog
-            .filter(log => new Date(log.timestamp) > cutoff)
-            .reduce((total, log) => total + log.tokens, 0);
-    }
-    
-    // 💾 数据持久化
-    saveSecurityLogs() {
-        try {
-            localStorage.setItem('personahire_security_logs', JSON.stringify({
-                usage: this.usageLog.slice(-100), // 只保留最近100条
-                events: this.securityEvents.slice(-50), // 只保留最近50条事件
-                updated: new Date().toISOString()
-            }));
-        } catch (error) {
-            console.warn('保存安全日志失败:', error);
+
+        // 检查长度
+        if (input.length > this.maxMessageLength) {
+            return { 
+                valid: false, 
+                error: `消息长度不能超过${this.maxMessageLength}字符（当前：${input.length}字符）` 
+            };
         }
-    }
-    
-    loadSecurityLogs() {
-        try {
-            const saved = localStorage.getItem('personahire_security_logs');
-            if (saved) {
-                const data = JSON.parse(saved);
-                this.usageLog = data.usage || [];
-                this.securityEvents = data.events || [];
-                console.log('📋 安全日志已加载');
+
+        // 检查可疑模式
+        for (const pattern of this.blacklistedPatterns) {
+            if (pattern.test(input)) {
+                this.suspiciousAttempts++;
+                console.warn('检测到可疑输入模式:', pattern);
+                
+                if (this.suspiciousAttempts >= this.maxSuspiciousAttempts) {
+                    return { 
+                        valid: false, 
+                        error: '检测到多次可疑输入，请联系管理员' 
+                    };
+                }
+                
+                return { 
+                    valid: false, 
+                    error: '输入包含不允许的内容，请重新输入' 
+                };
             }
-        } catch (error) {
-            console.warn('加载安全日志失败:', error);
         }
+
+        return { valid: true };
     }
-    
-    // 🔍 环境验证
-    validateEnvironment() {
-        // 检查是否在HTTPS环境
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-            console.warn('⚠️ 建议使用HTTPS协议以确保安全');
-        }
+
+    // 速率限制检查
+    checkRateLimit(userId = 'default') {
+        const now = Date.now();
+        const userRequests = this.rateLimitMap.get(userId) || [];
         
-        // 检查API Key格式
-        if (openaiKey && !openaiKey.startsWith('sk-')) {
-            this.logSecurityEvent('INVALID_API_KEY_FORMAT', { key_start: openaiKey.substring(0, 3) });
+        // 移除1分钟前的请求
+        const recentRequests = userRequests.filter(time => now - time < 60000);
+        
+        if (recentRequests.length >= this.maxMessagesPerMinute) {
+            return { 
+                allowed: false, 
+                error: `请求频率过高，请等待${Math.ceil((recentRequests[0] + 60000 - now) / 1000)}秒后重试` 
+            };
         }
+
+        // 添加当前请求时间
+        recentRequests.push(now);
+        this.rateLimitMap.set(userId, recentRequests);
+
+        return { allowed: true };
     }
-    
-    // 🆔 会话ID
-    getSessionId() {
-        let sessionId = sessionStorage.getItem('personahire_session');
-        if (!sessionId) {
-            sessionId = Utils.generateId();
-            sessionStorage.setItem('personahire_session', sessionId);
+
+    // 清理输入内容
+    sanitizeInput(input) {
+        if (!input || typeof input !== 'string') return '';
+
+        return input
+            .trim()
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;')
+            .replace(/\//g, '&#x2F;')
+            .substring(0, this.maxMessageLength);
+    }
+
+    // 验证API响应
+    validateApiResponse(response, expectedFields = []) {
+        if (!response || typeof response !== 'object') {
+            return { valid: false, error: 'API响应格式无效' };
         }
-        return sessionId;
+
+        // 检查必需字段
+        for (const field of expectedFields) {
+            if (!(field in response)) {
+                return { valid: false, error: `API响应缺少必需字段: ${field}` };
+            }
+        }
+
+        return { valid: true };
     }
-    
-    // 📊 获取安全统计
-    getSecurityStats() {
+
+    // 检测并阻止潜在的提示注入
+    detectPromptInjection(input) {
+        const injectionPatterns = [
+            /ignore\s+(?:previous|above|all)\s+instructions?/i,
+            /forget\s+(?:everything|all|previous)/i,
+            /you\s+are\s+now\s+(?:a|an)\s+/i,
+            /new\s+instructions?:/i,
+            /system\s*:\s*/i,
+            /assistant\s*:\s*/i,
+            /human\s*:\s*/i,
+            /role\s*:\s*(?:system|assistant|user)/i,
+            /pretend\s+(?:you\s+are|to\s+be)/i,
+            /act\s+as\s+(?:if|a|an)/i
+        ];
+
+        for (const pattern of injectionPatterns) {
+            if (pattern.test(input)) {
+                console.warn('检测到提示注入尝试:', input);
+                return { 
+                    detected: true, 
+                    error: '检测到不当输入，请使用正常的面试回答' 
+                };
+            }
+        }
+
+        return { detected: false };
+    }
+
+    // 生成安全的请求头
+    getSecureHeaders(apiKey) {
         return {
-            totalRequests: this.usageLog.length,
-            totalTokens: this.usageLog.reduce((sum, log) => sum + log.tokens, 0),
-            totalCost: this.usageLog.reduce((sum, log) => sum + log.cost, 0),
-            securityEvents: this.securityEvents.length,
-            todayUsage: this.getTodayUsage(),
-            avgResponseTime: this.usageLog.length > 0 
-                ? this.usageLog.reduce((sum, log) => sum + log.response_time, 0) / this.usageLog.length 
-                : 0
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'User-Agent': 'PersonaHire-Ultimate/1.0',
+            'X-Request-Source': 'web-app'
         };
     }
-    
-    // 🔄 重置安全数据
-    resetSecurityData() {
-        this.usageLog = [];
-        this.securityEvents = [];
-        localStorage.removeItem('personahire_security_logs');
-        console.log('🔄 安全数据已重置');
-    }
-}
 
-// 🚨 自定义错误类型
-class SecurityError extends Error {
-    constructor(message, code) {
-        super(message);
-        this.name = 'SecurityError';
-        this.code = code;
-        this.timestamp = new Date().toISOString();
-    }
-}
-
-class APIError extends Error {
-    constructor(message, status, code) {
-        super(message);
-        this.name = 'APIError';
-        this.status = status;
-        this.code = code;
-        this.timestamp = new Date().toISOString();
-    }
-}
-
-// 🛡️ 全局安全管理器实例
-let securityManager;
-
-// 🚀 初始化安全系统
-function initializeSecurity() {
-    try {
-        securityManager = new SecurityManager();
-        console.log('🛡️ 安全系统初始化完成');
-        return true;
-    } catch (error) {
-        console.error('❌ 安全系统初始化失败:', error);
-        return false;
-    }
-}
-
-// 📤 导出安全接口
-const SecureAPI = {
-    // 🔒 安全的GPT调用
-    async callGPT(messages, options = {}) {
-        if (!securityManager || !securityManager.isInitialized) {
-            throw new SecurityError('安全系统未初始化', 'SECURITY_NOT_INITIALIZED');
+    // 安全的错误处理
+    handleSecureError(error, context = '') {
+        // 记录详细错误信息（仅在开发模式）
+        if (window.configManager?.isDeveloperMode) {
+            console.error(`[Security] ${context}:`, error);
         }
-        return await securityManager.secureAPICall(messages, options);
-    },
-    
-    // 📊 获取安全统计
-    getStats() {
-        return securityManager ? securityManager.getSecurityStats() : null;
-    },
-    
-    // 🔄 重置数据
-    reset() {
-        if (securityManager) {
-            securityManager.resetSecurityData();
-        }
-    },
-    
-    // 🚨 手动记录安全事件
-    logEvent(type, details) {
-        if (securityManager) {
-            securityManager.logSecurityEvent(type, details);
+
+        // 返回用户友好的错误信息
+        if (error.message?.includes('401')) {
+            return 'API密钥无效，请检查密钥是否正确';
+        } else if (error.message?.includes('429')) {
+            return 'API请求频率过高，请稍后重试';
+        } else if (error.message?.includes('403')) {
+            return 'API访问被拒绝，请检查权限设置';
+        } else if (error.message?.includes('network')) {
+            return '网络连接异常，请检查网络连接';
+        } else {
+            return '服务暂时不可用，请稍后重试';
         }
     }
-};
 
-console.log('🛡️ 安全模块加载完成');
+    // 数据加密存储（简单的XOR加密）
+    encryptData(data, key = 'PersonaHire2024') {
+        let result = '';
+        for (let i = 0; i < data.length; i++) {
+            result += String.fromCharCode(
+                data.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+            );
+        }
+        return btoa(result);
+    }
+
+    // 数据解密
+    decryptData(encryptedData, key = 'PersonaHire2024') {
+        try {
+            const data = atob(encryptedData);
+            let result = '';
+            for (let i = 0; i < data.length; i++) {
+                result += String.fromCharCode(
+                    data.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+                );
+            }
+            return result;
+        } catch (error) {
+            console.error('数据解密失败:', error);
+            return null;
+        }
+    }
+
+    // 清理敏感数据
+    clearSensitiveData() {
+        // 清理localStorage中的敏感信息
+        const sensitiveKeys = ['openai_api_key', 'eleven_api_key'];
+        sensitiveKeys.forEach(key => {
+            if (localStorage.getItem(key)) {
+                localStorage.removeItem(key);
+            }
+        });
+
+        // 清理内存中的敏感数据
+        if (window.configManager) {
+            window.configManager.apiKeys.openai = '';
+            window.configManager.apiKeys.elevenlabs = '';
+        }
+
+        // 清理表单数据
+        const forms = document.querySelectorAll('input[type="password"]');
+        forms.forEach(input => input.value = '');
+    }
+
+    // 生成CSP（内容安全策略）违规报告
+    reportCSPViolation(violationEvent) {
+        console.warn('CSP违规检测:', {
+            blockedURI: violationEvent.blockedURI,
+            documentURI: violationEvent.documentURI,
+            violatedDirective: violationEvent.violatedDirective,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    // 初始化安全设置
+    initialize() {
+        // 设置CSP违规监听
+        document.addEventListener('securitypolicyviolation', (e) => {
+            this.reportCSPViolation(e);
+        });
+
+        // 防止控制台代码注入警告
+        if (!window.configManager?.isDeveloperMode) {
+            console.log('%c🛡️ 安全警告', 'color: red; font-size: 20px; font-weight: bold;');
+            console.log('%c请勿在此处粘贴或执行不明代码！', 'color: red; font-size: 16px;');
+            console.log('%c这可能导致您的账户信息被盗取。', 'color: red; font-size: 16px;');
+        }
+
+        // 页面隐藏时清理敏感数据
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // 页面隐藏时的安全措施
+                this.temporaryCleanup();
+            }
+        });
+
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', () => {
+            this.clearTemporaryData();
+        });
+    }
+
+    // 临时清理
+    temporaryCleanup() {
+        // 暂停音频播放
+        if (window.audioManager?.currentAudio) {
+            window.audioManager.currentAudio.pause();
+        }
+    }
+
+    // 清理临时数据
+    clearTemporaryData() {
+        // 清理可能的临时缓存
+        if (window.tokenMonitor) {
+            window.tokenMonitor.saveStats();
+        }
+    }
+
+    // 验证文件上传（如果需要）
+    validateFileUpload(file) {
+        const allowedTypes = ['text/plain', 'application/json'];
+        const maxSize = 1024 * 1024; // 1MB
+
+        if (!allowedTypes.includes(file.type)) {
+            return { valid: false, error: '不支持的文件类型' };
+        }
+
+        if (file.size > maxSize) {
+            return { valid: false, error: '文件大小超过限制（1MB）' };
+        }
+
+        return { valid: true };
+    }
+}
+
+// 初始化安全管理器
+window.securityManager = new SecurityManager();
+window.securityManager.initialize();

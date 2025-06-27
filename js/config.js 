@@ -1,199 +1,273 @@
-// 🔧 PersonaHire Ultimate - 配置文件
-// 包含所有配置项、常量和初始设置
+// PersonaHire Ultimate - 配置管理模块
+// 负责API密钥管理、模式检测、环境配置
 
-// 🌐 应用配置
-const APP_CONFIG = {
-    name: 'PersonaHire Ultimate',
-    version: '2.0.0',
-    author: 'Kaidong Wang',
-    github: 'https://github.com/Kyle-Wang0211/PersonaHire-Ultimate'
-};
-
-// 🔑 API配置
-const API_CONFIG = {
-    // 默认API密钥（用户模式）
-    DEFAULT_OPENAI_KEY: "your-openai-api-key-here",
-    DEFAULT_ELEVEN_KEY: "your-elevenlabs-api-key-here",
-    
-    // API端点
-    OPENAI_ENDPOINT: 'https://api.openai.com/v1/chat/completions',
-    OPENAI_TTS_ENDPOINT: 'https://api.openai.com/v1/audio/speech',
-    ELEVENLABS_ENDPOINT: 'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
-    
-    // 安全配置
-    ALLOWED_MODEL: 'gpt-4',
-    MAX_TOKENS_PER_REQUEST: 800,
-    DAILY_TOKEN_LIMIT: 10000,
-    COST_PER_1K_TOKENS: 0.03
-};
-
-// 🎭 面试官人格配置
-const INTERVIEWER_PERSONALITIES = {
-    professional: `你是专业技术面试官Sarah，注重逻辑思维和技术细节，会深度追问。`,
-    friendly: `你是温和HR面试官Sarah，善于鼓励候选人，营造轻松氛围但保持专业。`,
-    pressure: `你是高标准主管Sarah，会通过挑战性问题测试候选人抗压能力。`,
-    creative: `你是创新领导Sarah，喜欢开放式问题，鼓励创意思维和独特见解。`
-};
-
-// 📊 难度等级配置
-const DIFFICULTY_SETTINGS = {
-    beginner: "适合应届生，问题基础，重点考察学习能力",
-    intermediate: "适合1-3年经验，平衡技能和软实力", 
-    advanced: "适合资深人士，深度考察专业能力和领导力",
-    expert: "适合高级岗位，重点考察战略思维和管理能力"
-};
-
-// 🎵 语音配置
-const VOICE_CONFIG = {
-    OPENAI_VOICES: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-    DEFAULT_VOICE: 'nova',
-    TTS_SPEED: 1.0,
-    
-    // ElevenLabs配置
-    ELEVENLABS_MODEL: 'eleven_multilingual_v2',
-    ELEVENLABS_SETTINGS: {
-        stability: 0.5,
-        similarity_boost: 0.8,
-        style: 0.3,
-        use_speaker_boost: true
-    }
-};
-
-// 🛡️ 安全配置
-const SECURITY_CONFIG = {
-    // Token使用限制
-    MAX_TOKENS_PER_REQUEST: 1000,
-    DAILY_TOKEN_LIMIT: 10000,
-    WARNING_THRESHOLD: 5000,
-    
-    // 允许的模型列表
-    ALLOWED_MODELS: ['gpt-4', 'gpt-4-0613'],
-    BLOCKED_MODELS: [
-        'gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo', 
-        'chatgpt-4o-latest', 'gpt-4-turbo'
-    ],
-    
-    // 监控配置
-    LOG_RETENTION_DAYS: 30,
-    SECURITY_ALERT_THRESHOLD: 10000
-};
-
-// 📱 界面配置
-const UI_CONFIG = {
-    ANIMATION_DURATION: 300,
-    AUTO_SCROLL: true,
-    THEME: {
-        PRIMARY: '#667eea',
-        SECONDARY: '#764ba2',
-        SUCCESS: '#28a745',
-        WARNING: '#ffc107',
-        DANGER: '#dc3545',
-        INFO: '#17a2b8'
-    }
-};
-
-// 📊 监控配置
-const MONITORING_CONFIG = {
-    // 数据库配置
-    STORAGE_KEY: 'personahire_token_db',
-    DATABASE_VERSION: '1.0',
-    
-    // 统计配置
-    RETENTION_PERIOD: 30, // 天
-    AUTO_CLEANUP: true,
-    
-    // 导出配置
-    EXPORT_FORMATS: ['json', 'csv'],
-    DATE_FORMAT: 'YYYY-MM-DD',
-    TIME_FORMAT: 'HH:mm:ss'
-};
-
-// 🌍 全局变量初始化
-let openaiKey = '';
-let elevenKey = '';
-let conversationHistory = [];
-let interviewStarted = false;
-let currentAudio = null;
-let currentInterviewTokens = 0;
-let currentInterviewStartTime = null;
-
-// 🔍 模式检测
-const isDeveloperMode = window.location.search.includes('dev=true');
-
-// 🛠️ 实用工具函数
-const Utils = {
-    // 时间格式化
-    formatDate: (dateStr) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            weekday: 'short'
-        });
-    },
-    
-    formatFullTime: (timestamp) => {
-        const date = new Date(timestamp);
-        return date.toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-    },
-    
-    // 数字格式化
-    formatNumber: (num) => {
-        return num.toLocaleString();
-    },
-    
-    // 费用计算
-    calculateCost: (tokens) => {
-        return (tokens / 1000) * API_CONFIG.COST_PER_1K_TOKENS;
-    },
-    
-    // 类型标签转换
-    getTypeLabel: (type) => {
-        const labels = {
-            'chat': '对话',
-            'report': '报告',
-            'interview_start': '开始面试',
-            'tts': '语音合成',
-            'protected-chat': '安全对话'
+class ConfigManager {
+    constructor() {
+        this.isDeveloperMode = window.location.search.includes('dev=true');
+        this.apiKeys = {
+            openai: '',
+            elevenlabs: ''
         };
-        return labels[type] || type;
-    },
-    
-    // 随机ID生成
-    generateId: () => {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    },
-    
-    // 深拷贝
-    deepCopy: (obj) => {
-        return JSON.parse(JSON.stringify(obj));
+        this.settings = {
+            temperature: 0.7,
+            maxTokens: 800,
+            presencePenalty: 0.1,
+            frequencyPenalty: 0.1,
+            tokenOptimization: true,
+            smartSummary: true,
+            adaptiveDifficulty: false
+        };
+        this.init();
     }
-};
 
-// 🎯 导出配置（供其他模块使用）
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        APP_CONFIG,
-        API_CONFIG,
-        INTERVIEWER_PERSONALITIES,
-        DIFFICULTY_SETTINGS,
-        VOICE_CONFIG,
-        SECURITY_CONFIG,
-        UI_CONFIG,
-        MONITORING_CONFIG,
-        Utils
-    };
+    init() {
+        this.initializeMode();
+        this.loadSettings();
+        this.bindEvents();
+    }
+
+    initializeMode() {
+        const modeBadge = document.getElementById('modeBadge');
+        const devModeLink = document.getElementById('devModeLink');
+        const apiSetup = document.getElementById('apiSetup');
+
+        if (this.isDeveloperMode) {
+            // 开发者模式设置
+            apiSetup.style.display = 'block';
+            devModeLink.textContent = '👤 用户模式';
+            devModeLink.href = './';
+            modeBadge.textContent = '🔧 开发者模式';
+            modeBadge.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+            
+            this.loadApiKeysFromStorage();
+        } else {
+            // 用户模式设置
+            apiSetup.style.display = 'none';
+            modeBadge.textContent = '✨ 即开即用版';
+            modeBadge.style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
+            
+            // 使用预设密钥（生产环境中应该通过环境变量注入）
+            this.apiKeys.openai = this.getDefaultOpenAIKey();
+            this.apiKeys.elevenlabs = this.getDefaultElevenLabsKey();
+            
+            this.updateWelcomeMessage();
+            this.checkApiKeyValidity();
+        }
+    }
+
+    getDefaultOpenAIKey() {
+        // 在生产环境中，这应该通过服务器端注入
+        return "your-openai-api-key-here";
+    }
+
+    getDefaultElevenLabsKey() {
+        // 在生产环境中，这应该通过服务器端注入
+        return "your-elevenlabs-api-key-here";
+    }
+
+    loadApiKeysFromStorage() {
+        const savedOpenAI = localStorage.getItem('openai_api_key');
+        const savedElevenLabs = localStorage.getItem('eleven_api_key');
+        
+        if (savedOpenAI) {
+            document.getElementById('openaiKey').value = savedOpenAI;
+            this.apiKeys.openai = savedOpenAI;
+            document.getElementById('startBtn').disabled = false;
+        }
+        
+        if (savedElevenLabs) {
+            document.getElementById('elevenKey').value = savedElevenLabs;
+            this.apiKeys.elevenlabs = savedElevenLabs;
+        }
+    }
+
+    saveApiKeys() {
+        const openaiInput = document.getElementById('openaiKey');
+        const elevenInput = document.getElementById('elevenKey');
+        
+        const openaiKey = openaiInput.value.trim();
+        const elevenKey = elevenInput.value.trim();
+        
+        if (openaiKey && openaiKey.startsWith('sk-')) {
+            localStorage.setItem('openai_api_key', openaiKey);
+            this.apiKeys.openai = openaiKey;
+            
+            if (elevenKey) {
+                localStorage.setItem('eleven_api_key', elevenKey);
+                this.apiKeys.elevenlabs = elevenKey;
+            }
+            
+            window.uiManager.showMessage('✅ API配置保存成功！现在可以开始终极面试体验了。', 'success');
+            document.getElementById('startBtn').disabled = false;
+        } else {
+            window.uiManager.showError('请输入有效的OpenAI API Key (以sk-开头)');
+        }
+    }
+
+    checkApiKeyValidity() {
+        if (!this.isDeveloperMode) {
+            if (this.apiKeys.openai && this.apiKeys.openai !== "your-openai-api-key-here") {
+                document.getElementById('startBtn').disabled = false;
+            } else {
+                window.uiManager.showMessage('⚠️ 系统正在维护中，请稍后再试或联系管理员。', 'warning');
+            }
+        }
+    }
+
+    updateWelcomeMessage() {
+        if (!this.isDeveloperMode) {
+            const welcomeMsg = document.getElementById('welcomeMessage');
+            welcomeMsg.innerHTML = `
+            欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。
+            <br><br>
+            🎯 <strong>即开即用</strong> - 无需任何配置，立即开始专业面试体验
+            <br>🤖 <strong>GPT-4.1驱动</strong> - 最先进的AI推理引擎
+            <br>🎵 <strong>真人语音</strong> - 接近真实面试官的语音交互
+            <br>📊 <strong>专业评估</strong> - 多维度面试表现分析
+            <br>🔍 <strong>智能优化</strong> - Token使用优化和成本控制
+            <br><br>
+            请选择您想要的面试风格和难度，然后点击"开始面试"！
+            `;
+        }
+    }
+
+    loadSettings() {
+        const savedSettings = localStorage.getItem('persona_hire_settings');
+        if (savedSettings) {
+            this.settings = { ...this.settings, ...JSON.parse(savedSettings) };
+        }
+        this.applySettings();
+    }
+
+    saveSettings() {
+        localStorage.setItem('persona_hire_settings', JSON.stringify(this.settings));
+    }
+
+    applySettings() {
+        // 应用温度设置
+        const tempSlider = document.getElementById('temperature');
+        const tempValue = document.getElementById('tempValue');
+        if (tempSlider) {
+            tempSlider.value = this.settings.temperature;
+            tempValue.textContent = this.settings.temperature;
+        }
+
+        // 应用最大Token设置
+        const maxTokensSlider = document.getElementById('maxTokens');
+        const maxTokensValue = document.getElementById('maxTokensValue');
+        if (maxTokensSlider) {
+            maxTokensSlider.value = this.settings.maxTokens;
+            maxTokensValue.textContent = this.settings.maxTokens;
+        }
+
+        // 应用Presence Penalty设置
+        const presenceSlider = document.getElementById('presencePenalty');
+        const presenceValue = document.getElementById('presenceValue');
+        if (presenceSlider) {
+            presenceSlider.value = this.settings.presencePenalty;
+            presenceValue.textContent = this.settings.presencePenalty;
+        }
+
+        // 应用功能开关状态
+        this.updateToggleButtons();
+    }
+
+    updateToggleButtons() {
+        const buttons = {
+            'tokenOptimizeBtn': this.settings.tokenOptimization,
+            'smartSummaryBtn': this.settings.smartSummary,
+            'adaptiveDifficultyBtn': this.settings.adaptiveDifficulty
+        };
+
+        Object.entries(buttons).forEach(([id, active]) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.classList.toggle('active', active);
+            }
+        });
+    }
+
+    updateSetting(key, value) {
+        this.settings[key] = value;
+        this.saveSettings();
+    }
+
+    bindEvents() {
+        // 绑定设置更新事件
+        window.updateTemperature = () => {
+            const value = parseFloat(document.getElementById('temperature').value);
+            document.getElementById('tempValue').textContent = value;
+            this.updateSetting('temperature', value);
+        };
+
+        window.updateMaxTokens = () => {
+            const value = parseInt(document.getElementById('maxTokens').value);
+            document.getElementById('maxTokensValue').textContent = value;
+            this.updateSetting('maxTokens', value);
+        };
+
+        window.updatePresencePenalty = () => {
+            const value = parseFloat(document.getElementById('presencePenalty').value);
+            document.getElementById('presenceValue').textContent = value;
+            this.updateSetting('presencePenalty', value);
+        };
+
+        window.toggleTokenOptimization = () => {
+            this.settings.tokenOptimization = !this.settings.tokenOptimization;
+            this.updateSetting('tokenOptimization', this.settings.tokenOptimization);
+            this.updateToggleButtons();
+        };
+
+        window.toggleSmartSummary = () => {
+            this.settings.smartSummary = !this.settings.smartSummary;
+            this.updateSetting('smartSummary', this.settings.smartSummary);
+            this.updateToggleButtons();
+        };
+
+        window.toggleAdaptiveDifficulty = () => {
+            this.settings.adaptiveDifficulty = !this.settings.adaptiveDifficulty;
+            this.updateSetting('adaptiveDifficulty', this.settings.adaptiveDifficulty);
+            this.updateToggleButtons();
+        };
+
+        // 全局保存API密钥函数
+        window.saveApiKeys = () => this.saveApiKeys();
+    }
+
+    // 获取当前GPT请求配置
+    getGPTConfig() {
+        return {
+            model: 'gpt-4.1',
+            temperature: this.settings.temperature,
+            max_tokens: this.settings.maxTokens,
+            presence_penalty: this.settings.presencePenalty,
+            frequency_penalty: this.settings.frequencyPenalty
+        };
+    }
+
+    // 面试官人设库
+    getInterviewerPersonalities() {
+        return {
+            professional: `你是一位资深的技术总监Sarah，有15年面试经验。面试风格严谨、专业，会深挖技术细节和逻辑思维能力。每个问题都有明确目的，不允许模糊回答。你会根据候选人的表现动态调整问题难度。`,
+            
+            friendly: `你是一位温和的HR经理Sarah，擅长让紧张的候选人放松。你会用鼓励的语气，适时给予正面反馈，让面试者发挥出最佳状态。但同时保持专业标准，确保面试质量。`,
+            
+            pressure: `你是一位以高标准著称的部门主管Sarah，会通过有挑战性的问题测试候选人的抗压能力和应变能力。你会制造适度压力，但始终保持专业和尊重。`,
+            
+            creative: `你是一位创新导向的团队领导Sarah，喜欢开放式问题和创意思维。你会鼓励候选人跳出常规思路，展示独特见解和创新能力。`
+        };
+    }
+
+    // 难度设置
+    getDifficultySettings() {
+        return {
+            beginner: "适合应届生和初级岗位，问题相对基础，重点考察基本素质和学习能力",
+            intermediate: "适合有1-3年经验的候选人，平衡考察专业技能和软实力",
+            advanced: "适合资深专业人士，深度考察专业能力、领导力和战略思维",
+            expert: "适合高级管理岗位，重点考察复杂问题解决、团队管理和行业洞察"
+        };
+    }
 }
 
-console.log(`🚀 ${APP_CONFIG.name} v${APP_CONFIG.version} 配置加载完成`);
-console.log(`🔧 开发者模式: ${isDeveloperMode ? '启用' : '禁用'}`);
-console.log(`🛡️ 安全保护: ${SECURITY_CONFIG.ALLOWED_MODELS.join(', ')}`);
+// 初始化配置管理器
+window.configManager = new ConfigManager();
