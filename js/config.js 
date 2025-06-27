@@ -1,273 +1,389 @@
-// PersonaHire Ultimate - 配置管理模块
-// 负责API密钥管理、模式检测、环境配置
+/* PersonaHire Ultimate - 配置管理模块 */
+/* 双模式控制 + API配置 + 系统常量 */
 
-class ConfigManager {
-    constructor() {
-        this.isDeveloperMode = window.location.search.includes('dev=true');
-        this.apiKeys = {
-            openai: '',
-            elevenlabs: ''
-        };
-        this.settings = {
-            temperature: 0.7,
-            maxTokens: 800,
-            presencePenalty: 0.1,
-            frequencyPenalty: 0.1,
-            tokenOptimization: true,
-            smartSummary: true,
-            adaptiveDifficulty: false
-        };
-        this.init();
-    }
+// =============== 全局变量 ===============
 
-    init() {
-        this.initializeMode();
-        this.loadSettings();
-        this.bindEvents();
-    }
+// 模式检测 - 增加调试信息
+const isDeveloperMode = window.location.search.includes('dev=true');
+console.log('🔧 Mode Detection:');
+console.log('URL:', window.location.href);
+console.log('Search params:', window.location.search);
+console.log('Developer mode:', isDeveloperMode);
 
-    initializeMode() {
-        const modeBadge = document.getElementById('modeBadge');
-        const devModeLink = document.getElementById('devModeLink');
-        const apiSetup = document.getElementById('apiSetup');
+// API密钥变量
+let openaiKey = '';
+let elevenKey = '';
 
-        if (this.isDeveloperMode) {
-            // 开发者模式设置
-            apiSetup.style.display = 'block';
-            devModeLink.textContent = '👤 用户模式';
-            devModeLink.href = './';
-            modeBadge.textContent = '🔧 开发者模式';
-            modeBadge.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
-            
-            this.loadApiKeysFromStorage();
-        } else {
-            // 用户模式设置
-            apiSetup.style.display = 'none';
-            modeBadge.textContent = '✨ 即开即用版';
-            modeBadge.style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
-            
-            // 使用预设密钥（生产环境中应该通过环境变量注入）
-            this.apiKeys.openai = this.getDefaultOpenAIKey();
-            this.apiKeys.elevenlabs = this.getDefaultElevenLabsKey();
-            
-            this.updateWelcomeMessage();
-            this.checkApiKeyValidity();
-        }
-    }
+// 会话变量
+let conversationHistory = [];
+let interviewStarted = false;
+let currentAudio = null;
 
-    getDefaultOpenAIKey() {
-        // 在生产环境中，这应该通过服务器端注入
-        return "your-openai-api-key-here";
-    }
+// 统计变量
+let apiCallCount = 0;
+let totalTokensUsed = 0;
+let responseTimes = [];
+let sessionStartTime = Date.now();
+let currentSessionId = `session_${Date.now()}`;
 
-    getDefaultElevenLabsKey() {
-        // 在生产环境中，这应该通过服务器端注入
-        return "your-elevenlabs-api-key-here";
-    }
+// =============== API配置常量 ===============
 
-    loadApiKeysFromStorage() {
-        const savedOpenAI = localStorage.getItem('openai_api_key');
-        const savedElevenLabs = localStorage.getItem('eleven_api_key');
-        
-        if (savedOpenAI) {
-            document.getElementById('openaiKey').value = savedOpenAI;
-            this.apiKeys.openai = savedOpenAI;
-            document.getElementById('startBtn').disabled = false;
-        }
-        
-        if (savedElevenLabs) {
-            document.getElementById('elevenKey').value = savedElevenLabs;
-            this.apiKeys.elevenlabs = savedElevenLabs;
-        }
-    }
+// 预设API密钥（用户模式使用）
+const DEFAULT_OPENAI_KEY = "your-openai-api-key-here";
+const DEFAULT_ELEVEN_KEY = "your-elevenlabs-api-key-here";
 
-    saveApiKeys() {
-        const openaiInput = document.getElementById('openaiKey');
-        const elevenInput = document.getElementById('elevenKey');
-        
-        const openaiKey = openaiInput.value.trim();
-        const elevenKey = elevenInput.value.trim();
-        
-        if (openaiKey && openaiKey.startsWith('sk-')) {
-            localStorage.setItem('openai_api_key', openaiKey);
-            this.apiKeys.openai = openaiKey;
-            
-            if (elevenKey) {
-                localStorage.setItem('eleven_api_key', elevenKey);
-                this.apiKeys.elevenlabs = elevenKey;
-            }
-            
-            window.uiManager.showMessage('✅ API配置保存成功！现在可以开始终极面试体验了。', 'success');
-            document.getElementById('startBtn').disabled = false;
-        } else {
-            window.uiManager.showError('请输入有效的OpenAI API Key (以sk-开头)');
-        }
-    }
+// Token价格配置（基于官方价格）
+const TOKEN_PRICES = {
+    'gpt-4.1': { input: 0.01, output: 0.03 }, // 每1K tokens价格
+    'tts-1': 0.015, // 每1K字符价格
+    'tts-1-hd': 0.03,
+    'eleven-labs': 0.18 // ElevenLabs每1K字符价格
+};
 
-    checkApiKeyValidity() {
-        if (!this.isDeveloperMode) {
-            if (this.apiKeys.openai && this.apiKeys.openai !== "your-openai-api-key-here") {
-                document.getElementById('startBtn').disabled = false;
-            } else {
-                window.uiManager.showMessage('⚠️ 系统正在维护中，请稍后再试或联系管理员。', 'warning');
-            }
-        }
-    }
+// =============== 面试官人格库 ===============
 
-    updateWelcomeMessage() {
-        if (!this.isDeveloperMode) {
-            const welcomeMsg = document.getElementById('welcomeMessage');
-            welcomeMsg.innerHTML = `
-            欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。
-            <br><br>
-            🎯 <strong>即开即用</strong> - 无需任何配置，立即开始专业面试体验
-            <br>🤖 <strong>GPT-4.1驱动</strong> - 最先进的AI推理引擎
-            <br>🎵 <strong>真人语音</strong> - 接近真实面试官的语音交互
-            <br>📊 <strong>专业评估</strong> - 多维度面试表现分析
-            <br>🔍 <strong>智能优化</strong> - Token使用优化和成本控制
-            <br><br>
-            请选择您想要的面试风格和难度，然后点击"开始面试"！
-            `;
-        }
-    }
+const INTERVIEWER_PERSONALITIES = {
+    professional: `你是一位资深的技术总监Sarah，有15年面试经验。面试风格严谨、专业，会深挖技术细节和逻辑思维能力。每个问题都有明确目的，不允许模糊回答。你会根据候选人的表现动态调整问题难度。`,
+    
+    friendly: `你是一位温和的HR经理Sarah，擅长让紧张的候选人放松。你会用鼓励的语气，适时给予正面反馈，让面试者发挥出最佳状态。但同时保持专业标准，确保面试质量。`,
+    
+    pressure: `你是一位以高标准著称的部门主管Sarah，会通过有挑战性的问题测试候选人的抗压能力和应变能力。你会制造适度压力，但始终保持专业和尊重。`,
+    
+    creative: `你是一位创新导向的团队领导Sarah，喜欢开放式问题和创意思维。你会鼓励候选人跳出常规思路，展示独特见解和创新能力。`
+};
 
-    loadSettings() {
-        const savedSettings = localStorage.getItem('persona_hire_settings');
-        if (savedSettings) {
-            this.settings = { ...this.settings, ...JSON.parse(savedSettings) };
-        }
-        this.applySettings();
-    }
+// 难度设置配置
+const DIFFICULTY_SETTINGS = {
+    beginner: "适合应届生和初级岗位，问题相对基础，重点考察基本素质和学习能力",
+    intermediate: "适合有1-3年经验的候选人，平衡考察专业技能和软实力", 
+    advanced: "适合资深专业人士，深度考察专业能力、领导力和战略思维",
+    expert: "适合高级管理岗位，重点考察复杂问题解决、团队管理和行业洞察"
+};
 
-    saveSettings() {
-        localStorage.setItem('persona_hire_settings', JSON.stringify(this.settings));
-    }
+// =============== 模式管理函数 ===============
 
-    applySettings() {
-        // 应用温度设置
-        const tempSlider = document.getElementById('temperature');
-        const tempValue = document.getElementById('tempValue');
-        if (tempSlider) {
-            tempSlider.value = this.settings.temperature;
-            tempValue.textContent = this.settings.temperature;
-        }
-
-        // 应用最大Token设置
-        const maxTokensSlider = document.getElementById('maxTokens');
-        const maxTokensValue = document.getElementById('maxTokensValue');
-        if (maxTokensSlider) {
-            maxTokensSlider.value = this.settings.maxTokens;
-            maxTokensValue.textContent = this.settings.maxTokens;
-        }
-
-        // 应用Presence Penalty设置
-        const presenceSlider = document.getElementById('presencePenalty');
-        const presenceValue = document.getElementById('presenceValue');
-        if (presenceSlider) {
-            presenceSlider.value = this.settings.presencePenalty;
-            presenceValue.textContent = this.settings.presencePenalty;
-        }
-
-        // 应用功能开关状态
-        this.updateToggleButtons();
-    }
-
-    updateToggleButtons() {
-        const buttons = {
-            'tokenOptimizeBtn': this.settings.tokenOptimization,
-            'smartSummaryBtn': this.settings.smartSummary,
-            'adaptiveDifficultyBtn': this.settings.adaptiveDifficulty
-        };
-
-        Object.entries(buttons).forEach(([id, active]) => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                btn.classList.toggle('active', active);
-            }
-        });
-    }
-
-    updateSetting(key, value) {
-        this.settings[key] = value;
-        this.saveSettings();
-    }
-
-    bindEvents() {
-        // 绑定设置更新事件
-        window.updateTemperature = () => {
-            const value = parseFloat(document.getElementById('temperature').value);
-            document.getElementById('tempValue').textContent = value;
-            this.updateSetting('temperature', value);
-        };
-
-        window.updateMaxTokens = () => {
-            const value = parseInt(document.getElementById('maxTokens').value);
-            document.getElementById('maxTokensValue').textContent = value;
-            this.updateSetting('maxTokens', value);
-        };
-
-        window.updatePresencePenalty = () => {
-            const value = parseFloat(document.getElementById('presencePenalty').value);
-            document.getElementById('presenceValue').textContent = value;
-            this.updateSetting('presencePenalty', value);
-        };
-
-        window.toggleTokenOptimization = () => {
-            this.settings.tokenOptimization = !this.settings.tokenOptimization;
-            this.updateSetting('tokenOptimization', this.settings.tokenOptimization);
-            this.updateToggleButtons();
-        };
-
-        window.toggleSmartSummary = () => {
-            this.settings.smartSummary = !this.settings.smartSummary;
-            this.updateSetting('smartSummary', this.settings.smartSummary);
-            this.updateToggleButtons();
-        };
-
-        window.toggleAdaptiveDifficulty = () => {
-            this.settings.adaptiveDifficulty = !this.settings.adaptiveDifficulty;
-            this.updateSetting('adaptiveDifficulty', this.settings.adaptiveDifficulty);
-            this.updateToggleButtons();
-        };
-
-        // 全局保存API密钥函数
-        window.saveApiKeys = () => this.saveApiKeys();
-    }
-
-    // 获取当前GPT请求配置
-    getGPTConfig() {
-        return {
-            model: 'gpt-4.1',
-            temperature: this.settings.temperature,
-            max_tokens: this.settings.maxTokens,
-            presence_penalty: this.settings.presencePenalty,
-            frequency_penalty: this.settings.frequencyPenalty
-        };
-    }
-
-    // 面试官人设库
-    getInterviewerPersonalities() {
-        return {
-            professional: `你是一位资深的技术总监Sarah，有15年面试经验。面试风格严谨、专业，会深挖技术细节和逻辑思维能力。每个问题都有明确目的，不允许模糊回答。你会根据候选人的表现动态调整问题难度。`,
-            
-            friendly: `你是一位温和的HR经理Sarah，擅长让紧张的候选人放松。你会用鼓励的语气，适时给予正面反馈，让面试者发挥出最佳状态。但同时保持专业标准，确保面试质量。`,
-            
-            pressure: `你是一位以高标准著称的部门主管Sarah，会通过有挑战性的问题测试候选人的抗压能力和应变能力。你会制造适度压力，但始终保持专业和尊重。`,
-            
-            creative: `你是一位创新导向的团队领导Sarah，喜欢开放式问题和创意思维。你会鼓励候选人跳出常规思路，展示独特见解和创新能力。`
-        };
-    }
-
-    // 难度设置
-    getDifficultySettings() {
-        return {
-            beginner: "适合应届生和初级岗位，问题相对基础，重点考察基本素质和学习能力",
-            intermediate: "适合有1-3年经验的候选人，平衡考察专业技能和软实力",
-            advanced: "适合资深专业人士，深度考察专业能力、领导力和战略思维",
-            expert: "适合高级管理岗位，重点考察复杂问题解决、团队管理和行业洞察"
-        };
+/**
+ * 初始化应用模式和API密钥
+ */
+function initializeApiKeys() {
+    console.log('🚀 Initializing with developer mode:', isDeveloperMode);
+    
+    if (isDeveloperMode) {
+        // 开发者模式：显示API管理界面
+        setupDeveloperMode();
+    } else {
+        // 用户模式：隐藏技术复杂性
+        setupUserMode();
     }
 }
 
-// 初始化配置管理器
-window.configManager = new ConfigManager();
+/**
+ * 设置开发者模式
+ */
+function setupDeveloperMode() {
+    console.log('🔧 Setting up developer mode...');
+    
+    // 添加开发者模式类
+    document.getElementById('mainContainer').classList.add('dev-mode');
+    
+    // 显示开发者专用UI
+    document.getElementById('apiSetup').style.display = 'block';
+    document.getElementById('advancedSettings').style.display = 'block';
+    
+    // 更新界面标识
+    document.getElementById('modeBadge').textContent = '🔧 开发者模式';
+    document.getElementById('modeBadge').style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+    document.getElementById('headerDesc').textContent = '完整API控制 + Token监控管理';
+    
+    // 设置模式切换链接
+    const devModeLink = document.getElementById('devModeLink');
+    devModeLink.textContent = '👤 用户模式';
+    devModeLink.onclick = function() {
+        forceUserMode();
+        return false;
+    };
+    
+    // 加载保存的API密钥
+    loadSavedApiKeys();
+    
+    console.log('✅ Developer mode UI setup complete');
+}
+
+/**
+ * 设置用户模式
+ */
+function setupUserMode() {
+    console.log('👤 Setting up user mode...');
+    
+    // 添加用户模式类
+    document.getElementById('mainContainer').classList.add('user-mode');
+    
+    // 隐藏技术相关UI
+    document.getElementById('apiSetup').style.display = 'none';
+    document.getElementById('advancedSettings').style.display = 'none';
+    
+    // 更新界面标识
+    document.getElementById('modeBadge').textContent = '✨ 即开即用版';
+    document.getElementById('modeBadge').style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
+    
+    // 设置模式切换链接
+    const devModeLink = document.getElementById('devModeLink');
+    devModeLink.textContent = '🔧 开发者模式';
+    devModeLink.onclick = function() {
+        forceDeveloperMode();
+        return false;
+    };
+    
+    // 使用预设API密钥
+    openaiKey = DEFAULT_OPENAI_KEY;
+    elevenKey = DEFAULT_ELEVEN_KEY;
+    
+    // 检查预设密钥有效性
+    if (openaiKey && openaiKey !== "your-openai-api-key-here") {
+        document.getElementById('startBtn').disabled = false;
+    } else {
+        showMessage('⚠️ 系统正在维护中，请稍后再试或使用开发者模式。', 'error');
+    }
+    
+    // 更新欢迎消息为用户友好版本
+    updateWelcomeMessage();
+    
+    console.log('✅ User mode UI setup complete');
+}
+
+/**
+ * 加载保存的API密钥（开发者模式）
+ */
+function loadSavedApiKeys() {
+    const savedOpenaiKey = localStorage.getItem('openai_api_key');
+    const savedElevenKey = localStorage.getItem('eleven_api_key');
+    
+    if (savedOpenaiKey) {
+        document.getElementById('openaiKey').value = savedOpenaiKey;
+        openaiKey = savedOpenaiKey;
+        document.getElementById('startBtn').disabled = false;
+        
+        // 自动测试已保存的API
+        setTimeout(() => {
+            if (typeof testAllApis === 'function') {
+                testAllApis();
+            }
+        }, 1000);
+    }
+    
+    if (savedElevenKey) {
+        document.getElementById('elevenKey').value = savedElevenKey;
+        elevenKey = savedElevenKey;
+    }
+}
+
+/**
+ * 更新用户模式欢迎消息
+ */
+function updateWelcomeMessage() {
+    const welcomeMsg = document.getElementById('welcomeMessage');
+    if (welcomeMsg) {
+        welcomeMsg.innerHTML = `
+        欢迎来到PersonaHire Ultimate！我是您的专属AI面试官Sarah。
+        <br><br>
+        🎯 <strong>即开即用</strong> - 无需任何配置，立即开始专业面试体验
+        <br>🤖 <strong>GPT-4.1驱动</strong> - 最先进的AI推理引擎
+        <br>🎵 <strong>真人语音</strong> - 接近真实面试官的语音交互
+        <br>📊 <strong>专业评估</strong> - 多维度面试表现分析
+        <br><br>
+        请选择您想要的面试风格和难度，然后点击"开始面试"！
+        `;
+    }
+}
+
+// =============== 模式切换函数 ===============
+
+/**
+ * 强制切换到开发者模式
+ */
+function forceDeveloperMode() {
+    console.log('🔧 Forcing developer mode...');
+    const newUrl = window.location.pathname + '?dev=true';
+    console.log('Redirecting to:', newUrl);
+    window.location.href = newUrl;
+}
+
+/**
+ * 强制切换到用户模式
+ */
+function forceUserMode() {
+    console.log('👤 Forcing user mode...');
+    const newUrl = window.location.pathname;
+    console.log('Redirecting to:', newUrl);
+    window.location.href = newUrl;
+}
+
+// =============== API密钥管理 ===============
+
+/**
+ * 保存API密钥配置（仅开发者模式）
+ */
+function saveApiKeys() {
+    const openaiInput = document.getElementById('openaiKey');
+    const elevenInput = document.getElementById('elevenKey');
+    
+    openaiKey = openaiInput.value.trim();
+    elevenKey = elevenInput.value.trim();
+    
+    if (openaiKey && openaiKey.startsWith('sk-')) {
+        localStorage.setItem('openai_api_key', openaiKey);
+        if (elevenKey) {
+            localStorage.setItem('eleven_api_key', elevenKey);
+        }
+        showMessage('✅ API配置保存成功！正在测试连接...', 'success');
+        document.getElementById('startBtn').disabled = false;
+        
+        // 自动测试连接
+        setTimeout(() => {
+            if (typeof testAllApis === 'function') {
+                testAllApis();
+            }
+        }, 500);
+    } else {
+        showError('请输入有效的OpenAI API Key (以sk-开头)');
+    }
+}
+
+/**
+ * 清除保存的API密钥
+ */
+function clearApiKeys() {
+    localStorage.removeItem('openai_api_key');
+    localStorage.removeItem('eleven_api_key');
+    
+    document.getElementById('openaiKey').value = '';
+    document.getElementById('elevenKey').value = '';
+    
+    openaiKey = '';
+    elevenKey = '';
+    
+    showMessage('🗑️ API密钥已清除', 'success');
+}
+
+// =============== 高级设置管理 ===============
+
+/**
+ * 初始化高级设置（仅开发者模式）
+ */
+function initAdvancedSettings() {
+    if (!isDeveloperMode) return;
+    
+    const tempSlider = document.getElementById('temperature');
+    const tempValue = document.getElementById('tempValue');
+    
+    if (tempSlider && tempValue) {
+        tempSlider.addEventListener('input', (e) => {
+            tempValue.textContent = e.target.value;
+        });
+    }
+}
+
+/**
+ * 获取当前高级设置参数
+ */
+function getAdvancedSettings() {
+    if (!isDeveloperMode) {
+        return {
+            temperature: 0.7,
+            maxTokens: 800,
+            ttsModel: 'tts-1',
+            debugMode: false
+        };
+    }
+    
+    return {
+        temperature: parseFloat(document.getElementById('temperature')?.value || 0.7),
+        maxTokens: parseInt(document.getElementById('maxTokens')?.value || 800),
+        ttsModel: document.getElementById('ttsModel')?.value || 'tts-1',
+        debugMode: document.getElementById('debugMode')?.value === 'on'
+    };
+}
+
+// =============== 系统信息和调试 ===============
+
+/**
+ * 显示系统调试信息
+ */
+function showDebugInfo() {
+    const debugInfo = {
+        mode: isDeveloperMode ? 'Developer' : 'User',
+        apiCallCount: apiCallCount,
+        tokensUsed: totalTokensUsed,
+        sessionTime: Math.round((Date.now() - sessionStartTime) / 1000) + 's',
+        conversationLength: conversationHistory.length,
+        browserInfo: navigator.userAgent.split(' ').slice(-2).join(' '),
+        timestamp: new Date().toLocaleString(),
+        currentURL: window.location.href,
+        hasDevParam: window.location.search.includes('dev=true'),
+        sessionId: currentSessionId
+    };
+    
+    const debugText = Object.entries(debugInfo)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n');
+        
+    alert('🐛 系统调试信息:\n\n' + debugText);
+}
+
+/**
+ * 生成新的会话ID
+ */
+function generateNewSessionId() {
+    currentSessionId = `session_${Date.now()}`;
+    console.log('🆔 New session ID:', currentSessionId);
+    return currentSessionId;
+}
+
+// =============== 错误处理和状态显示 ===============
+
+/**
+ * 显示消息提示
+ */
+function showMessage(message, type = 'info') {
+    const statusDiv = document.getElementById('statusMessage');
+    if (statusDiv) {
+        statusDiv.className = type;
+        statusDiv.innerHTML = message;
+        statusDiv.style.display = 'block';
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+/**
+ * 显示错误消息
+ */
+function showError(message) {
+    showMessage(message, 'error');
+}
+
+/**
+ * 显示成功消息
+ */
+function showSuccess(message) {
+    showMessage(message, 'success');
+}
+
+// =============== 模块导出 ===============
+
+// 确保全局可访问的函数
+window.initializeApiKeys = initializeApiKeys;
+window.saveApiKeys = saveApiKeys;
+window.clearApiKeys = clearApiKeys;
+window.forceDeveloperMode = forceDeveloperMode;
+window.forceUserMode = forceUserMode;
+window.showDebugInfo = showDebugInfo;
+window.getAdvancedSettings = getAdvancedSettings;
+window.initAdvancedSettings = initAdvancedSettings;
+window.generateNewSessionId = generateNewSessionId;
+window.showMessage = showMessage;
+window.showError = showError;
+window.showSuccess = showSuccess;
+
+console.log('✅ Config module loaded successfully');

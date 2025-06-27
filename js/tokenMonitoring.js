@@ -1,386 +1,601 @@
-// PersonaHire Ultimate - Token监控统计模块
-// 负责Token使用统计、成本计算、优化建议
+/* PersonaHire Ultimate - Token监控模块 */
+/* 详细日志记录 + 使用统计 + 成本分析 */
 
-class TokenMonitor {
-    constructor() {
-        this.stats = {
-            totalTokens: 0,
-            inputTokens: 0,
-            outputTokens: 0,
-            totalCost: 0,
-            conversationRounds: 0,
-            sessionStartTime: Date.now(),
-            requestTimes: [],
-            modelUsage: {}
-        };
-        
-        this.pricing = {
-            'gpt-4.1': {
-                input: 0.00003,  // $0.03 per 1K tokens
-                output: 0.00006  // $0.06 per 1K tokens
-            },
-            'gpt-4o': {
-                input: 0.005,    // $5 per 1M tokens
-                output: 0.015    // $15 per 1M tokens
-            },
-            'gpt-4o-mini': {
-                input: 0.00015,  // $0.15 per 1M tokens
-                output: 0.0006   // $0.6 per 1M tokens
-            },
-            'gpt-3.5-turbo': {
-                input: 0.0005,   // $0.5 per 1M tokens
-                output: 0.0015   // $1.5 per 1M tokens
-            }
-        };
+// =============== 日志存储 ===============
 
-        this.thresholds = {
-            costWarning: 1.0,      // $1.00
-            costLimit: 5.0,        // $5.00
-            tokenWarning: 10000,   // 10K tokens
-            tokenLimit: 50000      // 50K tokens
-        };
+// 内存中的日志存储（会话期间）
+let tokenLogs = [];
+let dailyStats = {};
+let liveLogDisplay = [];
 
-        this.optimizations = {
-            contextWindow: 8000,    // 保持上下文在8K tokens内
-            summaryThreshold: 6000, // 超过6K tokens时启用摘要
-            compressionRatio: 0.3   // 摘要压缩比例
-        };
+// 本地存储键名
+const STORAGE_KEYS = {
+    TOKEN_LOGS: 'personahire_token_logs',
+    DAILY_STATS: 'personahire_daily_stats',
+    USAGE_SETTINGS: 'personahire_usage_settings'
+};
 
-        this.loadStats();
-        this.initializeUI();
+// =============== 日志记录功能 ===============
+
+/**
+ * 记录API调用详情
+ * @param {string} apiType - API类型 (gpt-4.1, tts-1, tts-1-hd, elevenlabs)
+ * @param {number} inputTokens - 输入Token数量
+ * @param {number} outputTokens - 输出Token数量  
+ * @param {number} cost - 本次调用成本
+ * @param {number} responseTime - 响应时间(ms)
+ * @param {Object} metadata - 额外元数据
+ */
+function logApiCall(apiType, inputTokens = 0, outputTokens = 0, cost = 0, responseTime = 0, metadata = {}) {
+    const timestamp = new Date();
+    const logEntry = {
+        id: `log_${timestamp.getTime()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: timestamp.toISOString(),
+        date: timestamp.toISOString().split('T')[0], // YYYY-MM-DD格式
+        time: timestamp.toLocaleTimeString('zh-CN'),
+        apiType: apiType,
+        inputTokens: inputTokens,
+        outputTokens: outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        cost: cost,
+        responseTime: responseTime,
+        sessionId: currentSessionId,
+        metadata: metadata
+    };
+    
+    console.log('📊 Logging API call:', logEntry);
+    
+    // 添加到内存日志
+    tokenLogs.push(logEntry);
+    
+    // 添加到实时显示日志（最多保留50条）
+    liveLogDisplay.unshift(logEntry);
+    if (liveLogDisplay.length > 50) {
+        liveLogDisplay.pop();
     }
-
-    // 估算Token数量（简单估算）
-    estimateTokens(text) {
-        if (!text) return 0;
-        // 简单估算：英文约4字符=1token，中文约1.5字符=1token
-        const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
-        const otherChars = text.length - chineseChars;
-        return Math.ceil(chineseChars / 1.5 + otherChars / 4);
-    }
-
-    // 记录API请求
-    recordRequest(model, inputText, outputText, actualTokens = null) {
-        const startTime = Date.now();
-        
-        // 估算或使用实际token数
-        const inputTokenCount = actualTokens?.prompt_tokens || this.estimateTokens(inputText);
-        const outputTokenCount = actualTokens?.completion_tokens || this.estimateTokens(outputText);
-        const totalTokenCount = inputTokenCount + outputTokenCount;
-
-        // 更新统计
-        this.stats.inputTokens += inputTokenCount;
-        this.stats.outputTokens += outputTokenCount;
-        this.stats.totalTokens += totalTokenCount;
-        this.stats.conversationRounds++;
-
-        // 计算成本
-        const cost = this.calculateCost(model, inputTokenCount, outputTokenCount);
-        this.stats.totalCost += cost;
-
-        // 记录模型使用
-        if (!this.stats.modelUsage[model]) {
-            this.stats.modelUsage[model] = { tokens: 0, cost: 0, requests: 0 };
-        }
-        this.stats.modelUsage[model].tokens += totalTokenCount;
-        this.stats.modelUsage[model].cost += cost;
-        this.stats.modelUsage[model].requests++;
-
-        // 记录响应时间
-        const responseTime = Date.now() - startTime;
-        this.stats.requestTimes.push(responseTime);
-        if (this.stats.requestTimes.length > 50) {
-            this.stats.requestTimes.shift(); // 只保留最近50次
-        }
-
-        // 更新UI
-        this.updateStatsDisplay();
-        
-        // 检查阈值警告
-        this.checkThresholds();
-
-        // 保存统计数据
-        this.saveStats();
-
-        return {
-            inputTokens: inputTokenCount,
-            outputTokens: outputTokenCount,
-            totalTokens: totalTokenCount,
-            cost: cost,
-            optimizationSuggestion: this.getOptimizationSuggestion()
-        };
-    }
-
-    // 计算成本
-    calculateCost(model, inputTokens, outputTokens) {
-        const pricing = this.pricing[model] || this.pricing['gpt-4.1'];
-        return (inputTokens * pricing.input + outputTokens * pricing.output);
-    }
-
-    // 更新统计显示
-    updateStatsDisplay() {
-        const elements = {
-            'totalTokens': this.stats.totalTokens.toLocaleString(),
-            'inputTokens': this.stats.inputTokens.toLocaleString(),
-            'outputTokens': this.stats.outputTokens.toLocaleString(),
-            'estimatedCost': `$${this.stats.totalCost.toFixed(4)}`,
-            'conversationRounds': this.stats.conversationRounds,
-            'avgResponseTime': this.getAverageResponseTime() + 'ms'
-        };
-
-        Object.entries(elements).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
-                
-                // 添加警告样式
-                if (id === 'estimatedCost' && this.stats.totalCost > this.thresholds.costWarning) {
-                    element.style.color = this.stats.totalCost > this.thresholds.costLimit ? 'red' : 'orange';
-                }
-                if (id === 'totalTokens' && this.stats.totalTokens > this.thresholds.tokenWarning) {
-                    element.style.color = this.stats.totalTokens > this.thresholds.tokenLimit ? 'red' : 'orange';
-                }
-            }
-        });
-    }
-
-    // 获取平均响应时间
-    getAverageResponseTime() {
-        if (this.stats.requestTimes.length === 0) return 0;
-        const sum = this.stats.requestTimes.reduce((a, b) => a + b, 0);
-        return Math.round(sum / this.stats.requestTimes.length);
-    }
-
-    // 检查阈值警告
-    checkThresholds() {
-        if (this.stats.totalCost > this.thresholds.costLimit) {
-            window.uiManager?.showMessage(
-                `⚠️ 成本警告：当前费用 $${this.stats.totalCost.toFixed(4)} 已超过限制 $${this.thresholds.costLimit}`,
-                'warning'
-            );
-        } else if (this.stats.totalCost > this.thresholds.costWarning) {
-            window.uiManager?.showMessage(
-                `💰 成本提醒：当前费用 $${this.stats.totalCost.toFixed(4)} 接近预警线`,
-                'warning'
-            );
-        }
-
-        if (this.stats.totalTokens > this.thresholds.tokenLimit) {
-            window.uiManager?.showMessage(
-                `⚠️ Token警告：使用量 ${this.stats.totalTokens} 已超过限制`,
-                'warning'
-            );
-        }
-    }
-
-    // 获取优化建议
-    getOptimizationSuggestion() {
-        const suggestions = [];
-
-        // 成本优化建议
-        if (this.stats.totalCost > this.thresholds.costWarning) {
-            suggestions.push('考虑使用 gpt-4o-mini 模型以降低成本');
-            suggestions.push('启用Token优化功能');
-        }
-
-        // Token优化建议
-        if (this.stats.totalTokens > this.thresholds.tokenWarning) {
-            suggestions.push('建议启用智能摘要功能');
-            suggestions.push('考虑减少对话上下文长度');
-        }
-
-        // 响应时间优化
-        const avgTime = this.getAverageResponseTime();
-        if (avgTime > 5000) {
-            suggestions.push('响应时间较长，考虑使用更快的模型');
-        }
-
-        return suggestions;
-    }
-
-    // 智能上下文优化
-    optimizeContext(conversationHistory) {
-        if (!window.configManager?.settings.tokenOptimization) {
-            return conversationHistory;
-        }
-
-        const totalTokens = conversationHistory.reduce((sum, msg) => 
-            sum + this.estimateTokens(msg.content), 0
-        );
-
-        if (totalTokens <= this.optimizations.contextWindow) {
-            return conversationHistory;
-        }
-
-        // 保留系统消息和最近的对话
-        const systemMessages = conversationHistory.filter(msg => msg.role === 'system');
-        const otherMessages = conversationHistory.filter(msg => msg.role !== 'system');
-        
-        // 从最新消息开始保留
-        let optimizedMessages = [...systemMessages];
-        let currentTokens = systemMessages.reduce((sum, msg) => 
-            sum + this.estimateTokens(msg.content), 0
-        );
-
-        // 从后往前添加消息，直到达到token限制
-        for (let i = otherMessages.length - 1; i >= 0; i--) {
-            const messageTokens = this.estimateTokens(otherMessages[i].content);
-            if (currentTokens + messageTokens <= this.optimizations.contextWindow) {
-                optimizedMessages.splice(-1, 0, otherMessages[i]);
-                currentTokens += messageTokens;
-            } else {
-                break;
-            }
-        }
-
-        console.log(`上下文优化: ${conversationHistory.length} → ${optimizedMessages.length} 消息`);
-        return optimizedMessages;
-    }
-
-    // 智能摘要生成
-    async generateSmartSummary(conversationHistory) {
-        if (!window.configManager?.settings.smartSummary) {
-            return conversationHistory;
-        }
-
-        const totalTokens = conversationHistory.reduce((sum, msg) => 
-            sum + this.estimateTokens(msg.content), 0
-        );
-
-        if (totalTokens <= this.optimizations.summaryThreshold) {
-            return conversationHistory;
-        }
-
-        try {
-            // 创建摘要请求
-            const summaryPrompt = `请将以下对话内容简洁地总结为关键信息，保留重要的问答要点，控制在${Math.floor(totalTokens * this.optimizations.compressionRatio)}个token以内：
-
-${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n\n')}`;
-
-            const summaryResponse = await window.apiManager.callGPT({
-                model: 'gpt-4o-mini', // 使用更便宜的模型生成摘要
-                messages: [{ role: 'user', content: summaryPrompt }],
-                max_tokens: Math.floor(totalTokens * this.optimizations.compressionRatio),
-                temperature: 0.3
-            });
-
-            // 返回包含摘要的新对话历史
-            const systemMsg = conversationHistory.find(msg => msg.role === 'system');
-            const summaryMsg = {
-                role: 'system',
-                content: `以下是之前对话的摘要：\n${summaryResponse}`
-            };
-
-            return systemMsg ? [systemMsg, summaryMsg] : [summaryMsg];
-
-        } catch (error) {
-            console.error('智能摘要生成失败:', error);
-            return this.optimizeContext(conversationHistory);
-        }
-    }
-
-    // 导出统计数据
-    exportStats() {
-        const exportData = {
-            ...this.stats,
-            sessionDuration: Date.now() - this.stats.sessionStartTime,
-            optimizationSettings: this.optimizations,
-            thresholds: this.thresholds,
-            exportTime: new Date().toISOString()
-        };
-
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-            type: 'application/json'
-        });
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `personahire-stats-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    // 重置统计
-    resetStats() {
-        this.stats = {
-            totalTokens: 0,
-            inputTokens: 0,
-            outputTokens: 0,
-            totalCost: 0,
-            conversationRounds: 0,
-            sessionStartTime: Date.now(),
-            requestTimes: [],
-            modelUsage: {}
-        };
-        this.saveStats();
-        this.updateStatsDisplay();
-    }
-
-    // 保存统计数据
-    saveStats() {
-        try {
-            localStorage.setItem('persona_hire_token_stats', JSON.stringify(this.stats));
-        } catch (error) {
-            console.error('保存统计数据失败:', error);
-        }
-    }
-
-    // 加载统计数据
-    loadStats() {
-        try {
-            const saved = localStorage.getItem('persona_hire_token_stats');
-            if (saved) {
-                const loadedStats = JSON.parse(saved);
-                this.stats = { ...this.stats, ...loadedStats };
-                // 重置会话开始时间
-                this.stats.sessionStartTime = Date.now();
-            }
-        } catch (error) {
-            console.error('加载统计数据失败:', error);
-        }
-    }
-
-    // 初始化UI
-    initializeUI() {
-        // 绑定导出功能
-        window.exportStats = () => this.exportStats();
-        
-        // 绑定面板切换
-        window.toggleStatsPanel = () => {
-            const panel = document.getElementById('statsPanel');
-            if (panel) {
-                const isVisible = panel.style.display !== 'none';
-                panel.style.display = isVisible ? 'none' : 'block';
-            }
-        };
-
-        // 定时更新显示
-        setInterval(() => {
-            this.updateStatsDisplay();
-        }, 5000);
-    }
-
-    // 获取Token使用效率报告
-    getEfficiencyReport() {
-        const avgTokensPerRound = this.stats.conversationRounds > 0 
-            ? this.stats.totalTokens / this.stats.conversationRounds 
-            : 0;
-
-        const avgCostPerRound = this.stats.conversationRounds > 0 
-            ? this.stats.totalCost / this.stats.conversationRounds 
-            : 0;
-
-        return {
-            averageTokensPerRound: Math.round(avgTokensPerRound),
-            averageCostPerRound: avgCostPerRound.toFixed(4),
-            totalEfficiency: avgTokensPerRound > 0 ? (this.stats.totalCost / this.stats.totalTokens * 1000).toFixed(4) : 0,
-            recommendations: this.getOptimizationSuggestion()
-        };
+    
+    // 保存到本地存储
+    saveLogToStorage(logEntry);
+    
+    // 更新统计数据
+    updateUsageStats(inputTokens + outputTokens, responseTime, cost);
+    updateDailyStats(logEntry);
+    
+    // 更新UI显示
+    if (isDeveloperMode) {
+        updateLiveLogDisplay();
+        updateStatsDisplay();
     }
 }
 
-// 初始化Token监控器
-window.tokenMonitor = new TokenMonitor();
+/**
+ * 保存日志到本地存储
+ * @param {Object} logEntry - 日志条目
+ */
+function saveLogToStorage(logEntry) {
+    try {
+        // 获取现有日志
+        const existingLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.TOKEN_LOGS) || '[]');
+        
+        // 添加新日志
+        existingLogs.push(logEntry);
+        
+        // 保持最多1000条记录
+        if (existingLogs.length > 1000) {
+            existingLogs.splice(0, existingLogs.length - 1000);
+        }
+        
+        // 保存回本地存储
+        localStorage.setItem(STORAGE_KEYS.TOKEN_LOGS, JSON.stringify(existingLogs));
+        
+        console.log('💾 Log saved to localStorage');
+    } catch (error) {
+        console.error('❌ Failed to save log to storage:', error);
+    }
+}
+
+/**
+ * 从本地存储加载历史日志
+ */
+function loadLogsFromStorage() {
+    try {
+        const storedLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.TOKEN_LOGS) || '[]');
+        tokenLogs = storedLogs;
+        
+        // 加载最近的日志到实时显示
+        liveLogDisplay = storedLogs.slice(-50).reverse();
+        
+        console.log(`📚 Loaded ${storedLogs.length} logs from storage`);
+        return storedLogs;
+    } catch (error) {
+        console.error('❌ Failed to load logs from storage:', error);
+        return [];
+    }
+}
+
+// =============== 统计数据管理 ===============
+
+/**
+ * 更新使用统计（兼容现有代码）
+ * @param {number} tokensUsed - Token使用量
+ * @param {number} responseTime - 响应时间
+ * @param {number} cost - 成本
+ */
+function updateUsageStats(tokensUsed, responseTime, cost = 0) {
+    apiCallCount++;
+    totalTokensUsed += tokensUsed;
+    responseTimes.push(responseTime);
+    
+    // 只有在开发者模式且元素存在时才更新DOM
+    if (isDeveloperMode && document.getElementById('apiCallCount')) {
+        document.getElementById('apiCallCount').textContent = apiCallCount;
+        document.getElementById('tokenUsed').textContent = totalTokensUsed.toLocaleString();
+        document.getElementById('estimatedCost').textContent = `$${calculateTotalCost().toFixed(4)}`;
+        
+        const avgTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+        document.getElementById('avgResponseTime').textContent = `${Math.round(avgTime)}ms`;
+    }
+}
+
+/**
+ * 更新每日统计
+ * @param {Object} logEntry - 日志条目
+ */
+function updateDailyStats(logEntry) {
+    const date = logEntry.date;
+    
+    if (!dailyStats[date]) {
+        dailyStats[date] = {
+            date: date,
+            totalCalls: 0,
+            totalTokens: 0,
+            totalCost: 0,
+            apiBreakdown: {},
+            avgResponseTime: 0,
+            responseTimes: []
+        };
+    }
+    
+    const dayStats = dailyStats[date];
+    dayStats.totalCalls++;
+    dayStats.totalTokens += logEntry.totalTokens;
+    dayStats.totalCost += logEntry.cost;
+    dayStats.responseTimes.push(logEntry.responseTime);
+    dayStats.avgResponseTime = dayStats.responseTimes.reduce((a, b) => a + b, 0) / dayStats.responseTimes.length;
+    
+    // API类型分类统计
+    if (!dayStats.apiBreakdown[logEntry.apiType]) {
+        dayStats.apiBreakdown[logEntry.apiType] = {
+            calls: 0,
+            tokens: 0,
+            cost: 0
+        };
+    }
+    
+    dayStats.apiBreakdown[logEntry.apiType].calls++;
+    dayStats.apiBreakdown[logEntry.apiType].tokens += logEntry.totalTokens;
+    dayStats.apiBreakdown[logEntry.apiType].cost += logEntry.cost;
+    
+    // 保存到本地存储
+    localStorage.setItem(STORAGE_KEYS.DAILY_STATS, JSON.stringify(dailyStats));
+}
+
+/**
+ * 计算总成本
+ * @returns {number} 总成本
+ */
+function calculateTotalCost() {
+    return tokenLogs.reduce((total, log) => total + log.cost, 0);
+}
+
+/**
+ * 计算API调用成本
+ * @param {number} inputTokens - 输入Token数
+ * @param {number} outputTokens - 输出Token数
+ * @param {string} model - 模型名称
+ * @returns {number} 成本
+ */
+function calculateCost(inputTokens, outputTokens, model = 'gpt-4.1') {
+    const prices = TOKEN_PRICES[model];
+    if (!prices) return 0;
+    
+    if (typeof prices === 'object') {
+        // GPT模型有输入输出不同价格
+        const inputCost = (inputTokens / 1000) * prices.input;
+        const outputCost = (outputTokens / 1000) * prices.output;
+        return inputCost + outputCost;
+    } else {
+        // TTS模型按字符计费
+        const totalChars = inputTokens + outputTokens;
+        return (totalChars / 1000) * prices;
+    }
+}
+
+// =============== UI更新函数 ===============
+
+/**
+ * 更新实时日志显示
+ */
+function updateLiveLogDisplay() {
+    const liveLogsList = document.getElementById('liveLogsList');
+    if (!liveLogsList) return;
+    
+    liveLogsList.innerHTML = '';
+    
+    liveLogDisplay.slice(0, 10).forEach(log => {
+        const logElement = createLogElement(log);
+        liveLogsList.appendChild(logElement);
+    });
+}
+
+/**
+ * 创建日志条目元素
+ * @param {Object} log - 日志对象
+ * @returns {HTMLElement} 日志元素
+ */
+function createLogElement(log) {
+    const logDiv = document.createElement('div');
+    logDiv.className = `log-entry ${getLogTypeClass(log.apiType)}`;
+    
+    const icon = getApiIcon(log.apiType);
+    const tokenInfo = log.totalTokens > 0 ? `${log.inputTokens}→${log.outputTokens} tokens` : `${log.totalTokens} chars`;
+    
+    logDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span>🕐 ${log.time} | ${icon} ${log.apiType.toUpperCase()}</span>
+            <span style="font-weight: 600;">$${log.cost.toFixed(4)}</span>
+        </div>
+        <div style="font-size: 0.8em; color: #666; margin-top: 4px;">
+            ${tokenInfo} | ${log.responseTime}ms
+        </div>
+    `;
+    
+    return logDiv;
+}
+
+/**
+ * 获取API类型对应的CSS类
+ * @param {string} apiType - API类型
+ * @returns {string} CSS类名
+ */
+function getLogTypeClass(apiType) {
+    if (apiType.includes('gpt')) return 'api-call';
+    if (apiType.includes('tts') || apiType.includes('elevenlabs')) return 'tts-call';
+    return 'api-call';
+}
+
+/**
+ * 获取API类型对应的图标
+ * @param {string} apiType - API类型
+ * @returns {string} 图标
+ */
+function getApiIcon(apiType) {
+    if (apiType.includes('gpt')) return '🤖';
+    if (apiType.includes('tts') || apiType.includes('elevenlabs')) return '🎵';
+    return '⚡';
+}
+
+/**
+ * 更新统计显示面板
+ */
+function updateStatsDisplay() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayStats = dailyStats[today];
+    
+    if (!todayStats) return;
+    
+    // 更新今日统计显示
+    const todayStatsElement = document.getElementById('todayStats');
+    if (todayStatsElement) {
+        todayStatsElement.innerHTML = `
+            <h5>📅 今日统计 (${today})</h5>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">${todayStats.totalCalls}</div>
+                    <div class="stat-label">API调用</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${todayStats.totalTokens.toLocaleString()}</div>
+                    <div class="stat-label">Token消耗</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">$${todayStats.totalCost.toFixed(4)}</div>
+                    <div class="stat-label">今日成本</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Math.round(todayStats.avgResponseTime)}ms</div>
+                    <div class="stat-label">平均响应</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// =============== 日志查询和导出 ===============
+
+/**
+ * 获取指定时间范围的日志
+ * @param {string} timeRange - 时间范围 (today, week, month, all)
+ * @returns {Array} 日志数组
+ */
+function getLogsForTimeRange(timeRange) {
+    const now = new Date();
+    let startDate;
+    
+    switch (timeRange) {
+        case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+        case 'week':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+        default:
+            return tokenLogs;
+    }
+    
+    return tokenLogs.filter(log => new Date(log.timestamp) >= startDate);
+}
+
+/**
+ * 生成日志摘要
+ * @param {Array} logs - 日志数组
+ * @returns {Object} 摘要信息
+ */
+function generateLogSummary(logs) {
+    const summary = {
+        totalCalls: logs.length,
+        totalTokens: 0,
+        totalCost: 0,
+        avgResponseTime: 0,
+        apiBreakdown: {},
+        dateRange: {
+            start: null,
+            end: null
+        }
+    };
+    
+    if (logs.length === 0) return summary;
+    
+    // 计算总计
+    const responseTimes = [];
+    logs.forEach(log => {
+        summary.totalTokens += log.totalTokens;
+        summary.totalCost += log.cost;
+        responseTimes.push(log.responseTime);
+        
+        // API分类统计
+        if (!summary.apiBreakdown[log.apiType]) {
+            summary.apiBreakdown[log.apiType] = { calls: 0, tokens: 0, cost: 0 };
+        }
+        summary.apiBreakdown[log.apiType].calls++;
+        summary.apiBreakdown[log.apiType].tokens += log.totalTokens;
+        summary.apiBreakdown[log.apiType].cost += log.cost;
+    });
+    
+    // 计算平均响应时间
+    summary.avgResponseTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+    
+    // 日期范围
+    const timestamps = logs.map(log => new Date(log.timestamp));
+    summary.dateRange.start = new Date(Math.min(...timestamps)).toISOString();
+    summary.dateRange.end = new Date(Math.max(...timestamps)).toISOString();
+    
+    return summary;
+}
+
+/**
+ * 导出Token使用日志
+ * @param {string} timeRange - 时间范围
+ * @param {string} format - 导出格式 (json, csv)
+ */
+function exportLogs(timeRange = 'all', format = 'json') {
+    const logs = getLogsForTimeRange(timeRange);
+    const summary = generateLogSummary(logs);
+    
+    const exportData = {
+        exportInfo: {
+            timestamp: new Date().toISOString(),
+            timeRange: timeRange,
+            format: format,
+            totalRecords: logs.length
+        },
+        summary: summary,
+        logs: logs
+    };
+    
+    if (format === 'json') {
+        downloadAsJSON(exportData, `token-logs-${timeRange}-${Date.now()}.json`);
+    } else if (format === 'csv') {
+        downloadAsCSV(logs, `token-logs-${timeRange}-${Date.now()}.csv`);
+    }
+    
+    showSuccess(`✅ 已导出 ${logs.length} 条日志记录`);
+}
+
+/**
+ * 下载JSON文件
+ * @param {Object} data - 数据对象
+ * @param {string} filename - 文件名
+ */
+function downloadAsJSON(data, filename) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json'
+    });
+    downloadBlob(blob, filename);
+}
+
+/**
+ * 下载CSV文件
+ * @param {Array} logs - 日志数组
+ * @param {string} filename - 文件名
+ */
+function downloadAsCSV(logs, filename) {
+    const headers = ['Timestamp', 'API Type', 'Input Tokens', 'Output Tokens', 'Total Tokens', 'Cost', 'Response Time', 'Session ID'];
+    const csvContent = [
+        headers.join(','),
+        ...logs.map(log => [
+            log.timestamp,
+            log.apiType,
+            log.inputTokens,
+            log.outputTokens,
+            log.totalTokens,
+            log.cost,
+            log.responseTime,
+            log.sessionId
+        ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    downloadBlob(blob, filename);
+}
+
+/**
+ * 下载Blob对象
+ * @param {Blob} blob - Blob对象
+ * @param {string} filename - 文件名
+ */
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// =============== 初始化函数 ===============
+
+/**
+ * 初始化Token监控系统
+ */
+function initTokenMonitoring() {
+    console.log('📊 Initializing token monitoring...');
+    
+    // 加载历史日志
+    loadLogsFromStorage();
+    
+    // 初始化每日统计
+    const storedStats = localStorage.getItem(STORAGE_KEYS.DAILY_STATS);
+    if (storedStats) {
+        dailyStats = JSON.parse(storedStats);
+    }
+    
+    // 如果是开发者模式，初始化UI
+    if (isDeveloperMode) {
+        initTokenMonitoringUI();
+    }
+    
+    console.log('✅ Token monitoring initialized');
+}
+
+/**
+ * 初始化Token监控UI
+ */
+function initTokenMonitoringUI() {
+    // 创建Token日志面板
+    createTokenLogsPanel();
+    
+    // 更新显示
+    updateLiveLogDisplay();
+    updateStatsDisplay();
+}
+
+/**
+ * 创建Token日志面板
+ */
+function createTokenLogsPanel() {
+    const tokenLogsContainer = document.getElementById('tokenLogs');
+    if (!tokenLogsContainer) return;
+    
+    tokenLogsContainer.innerHTML = `
+        <h4>📋 Token使用日志</h4>
+        
+        <!-- 实时日志 -->
+        <div class="live-logs">
+            <h5>🔴 实时调用记录</h5>
+            <div id="liveLogsList"></div>
+        </div>
+        
+        <!-- 今日统计 -->
+        <div id="todayStats" class="history-stats">
+            <h5>📅 今日统计</h5>
+        </div>
+        
+        <!-- 日志操作 -->
+        <div class="detailed-logs" style="margin-top: 24px;">
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <select id="exportTimeRange">
+                    <option value="today">今天</option>
+                    <option value="week">本周</option>
+                    <option value="month">本月</option>
+                    <option value="all">全部</option>
+                </select>
+                <select id="exportFormat">
+                    <option value="json">JSON格式</option>
+                    <option value="csv">CSV格式</option>
+                </select>
+                <button onclick="exportTokenLogs()" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer;">
+                    📥 导出日志
+                </button>
+                <button onclick="clearTokenLogs()" style="background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer;">
+                    🗑️ 清空日志
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 导出Token日志（UI调用）
+ */
+function exportTokenLogs() {
+    const timeRange = document.getElementById('exportTimeRange')?.value || 'all';
+    const format = document.getElementById('exportFormat')?.value || 'json';
+    exportLogs(timeRange, format);
+}
+
+/**
+ * 清空Token日志
+ */
+function clearTokenLogs() {
+    if (confirm('确定要清空所有Token日志吗？此操作不可恢复。')) {
+        tokenLogs = [];
+        liveLogDisplay = [];
+        dailyStats = {};
+        
+        localStorage.removeItem(STORAGE_KEYS.TOKEN_LOGS);
+        localStorage.removeItem(STORAGE_KEYS.DAILY_STATS);
+        
+        // 重置统计变量
+        apiCallCount = 0;
+        totalTokensUsed = 0;
+        responseTimes = [];
+        
+        // 更新UI
+        if (isDeveloperMode) {
+            updateLiveLogDisplay();
+            updateStatsDisplay();
+            updateUsageStats(0, 0, 0);
+        }
+        
+        showSuccess('🗑️ Token日志已清空');
+    }
+}
+
+// =============== 模块导出 ===============
+
+// 确保全局可访问的函数
+window.logApiCall = logApiCall;
+window.updateUsageStats = updateUsageStats;
+window.calculateCost = calculateCost;
+window.exportLogs = exportLogs;
+window.exportTokenLogs = exportTokenLogs;
+window.clearTokenLogs = clearTokenLogs;
+window.initTokenMonitoring = initTokenMonitoring;
+window.getLogsForTimeRange = getLogsForTimeRange;
+window.generateLogSummary = generateLogSummary;
+
+console.log('📊 Token monitoring module loaded successfully');
