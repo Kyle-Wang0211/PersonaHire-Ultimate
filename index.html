@@ -596,7 +596,7 @@
         
         <!-- 开发者模式入口 -->
         <div style="text-align: center; margin-top: 20px; padding: 20px;">
-            <a href="?dev=true" style="color: #999; font-size: 12px; text-decoration: none;" id="devModeLink">
+            <a href="#" onclick="return false;" style="color: #999; font-size: 12px; text-decoration: none;" id="devModeLink">
                 🔧 开发者模式
             </a>
             <span style="color: #ccc; font-size: 12px; margin: 0 10px;">|</span>
@@ -627,8 +627,11 @@
         let responseTimes = [];
         let sessionStartTime = Date.now();
         
-        // 模式检测
+        // 模式检测 - 增加调试信息
         const isDeveloperMode = window.location.search.includes('dev=true');
+        console.log('URL:', window.location.href);
+        console.log('Search params:', window.location.search);
+        console.log('Developer mode:', isDeveloperMode);
         
         // 预设API密钥（请替换为你的实际密钥）
         const DEFAULT_OPENAI_KEY = "your-openai-api-key-here";
@@ -812,17 +815,28 @@
         }
         
         function initializeApiKeys() {
+            console.log('Initializing with developer mode:', isDeveloperMode);
+            
             if (isDeveloperMode) {
                 // 开发者模式：显示API配置，从localStorage加载
+                console.log('Setting up developer mode...');
                 document.getElementById('apiSetup').style.display = 'block';
                 document.getElementById('advancedSettings').style.display = 'block';
                 document.getElementById('devModeLink').textContent = '👤 用户模式';
-                document.getElementById('devModeLink').href = './';
+                document.getElementById('devModeLink').onclick = function() {
+                    forceUserMode();
+                    return false;
+                };
                 document.getElementById('modeBadge').textContent = '🔧 开发者模式';
                 document.getElementById('modeBadge').style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
                 
                 // 添加开发者模式类
                 document.getElementById('mainContainer').classList.add('dev-mode');
+                document.getElementById('devModeLink').onclick = function() {
+                    forceUserMode();
+                    return false;
+                };
+                console.log('Developer mode UI setup complete');
                 
                 const savedOpenaiKey = localStorage.getItem('openai_api_key');
                 const savedElevenKey = localStorage.getItem('eleven_api_key');
@@ -845,7 +859,14 @@
                 initAdvancedSettings();
             } else {
                 // 用户模式：隐藏API配置，使用预设密钥
+                console.log('Setting up user mode...');
                 document.getElementById('apiSetup').style.display = 'none';
+                document.getElementById('advancedSettings').style.display = 'none';
+                document.getElementById('devModeLink').textContent = '🔧 开发者模式';
+                document.getElementById('devModeLink').onclick = function() {
+                    forceDeveloperMode();
+                    return false;
+                };
                 document.getElementById('modeBadge').textContent = '✨ 即开即用版';
                 document.getElementById('modeBadge').style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
                 openaiKey = DEFAULT_OPENAI_KEY;
@@ -853,6 +874,11 @@
                 
                 // 添加用户模式类
                 document.getElementById('mainContainer').classList.add('user-mode');
+                document.getElementById('devModeLink').onclick = function() {
+                    forceDeveloperMode();
+                    return false;
+                };
+                console.log('User mode UI setup complete');
                 
                 // 检查是否有有效的预设密钥
                 if (openaiKey && openaiKey !== "your-openai-api-key-here") {
@@ -1251,7 +1277,9 @@
                 sessionTime: Math.round((Date.now() - sessionStartTime) / 1000) + 's',
                 conversationLength: conversationHistory.length,
                 browserInfo: navigator.userAgent.split(' ').slice(-2).join(' '),
-                timestamp: new Date().toLocaleString()
+                timestamp: new Date().toLocaleString(),
+                currentURL: window.location.href,
+                hasDevParam: window.location.search.includes('dev=true')
             };
             
             const debugText = Object.entries(debugInfo)
@@ -1259,6 +1287,22 @@
                 .join('\n');
                 
             alert('🐛 调试信息:\n\n' + debugText);
+        }
+
+        // 新增：强制切换到开发者模式
+        function forceDeveloperMode() {
+            console.log('Forcing developer mode...');
+            const newUrl = window.location.pathname + '?dev=true';
+            console.log('Redirecting to:', newUrl);
+            window.location.href = newUrl;
+        }
+
+        // 新增：强制切换到用户模式
+        function forceUserMode() {
+            console.log('Forcing user mode...');
+            const newUrl = window.location.pathname;
+            console.log('Redirecting to:', newUrl);
+            window.location.href = newUrl;
         }
 
         // 页面加载初始化
