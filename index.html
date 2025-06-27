@@ -322,13 +322,17 @@
             font-size: 14px;
         }
 
+        /* 🔧 开发者专用功能 - 只在开发者模式显示 */
+        .developer-only {
+            display: none;
+        }
+
         .stats-panel {
             background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 24px;
             border: 1px solid #4caf50;
-            display: none;
         }
 
         .stats-grid {
@@ -363,7 +367,6 @@
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 24px;
-            display: none;
         }
 
         .control-group {
@@ -425,6 +428,30 @@
             background: #5a369a;
             transform: translateY(-2px);
         }
+
+        /* 用户模式简化按钮 */
+        .user-mode-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .simple-toggle {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .simple-toggle:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -447,8 +474,8 @@
             </small>
         </div>
 
-        <!-- Token使用统计面板 -->
-        <div class="stats-panel" id="statsPanel">
+        <!-- 🔧 Token统计面板 - 只在开发者模式显示 -->
+        <div class="stats-panel developer-only" id="statsPanel">
             <h3>📊 Token使用统计</h3>
             <div class="stats-grid">
                 <div class="stat-item">
@@ -478,8 +505,8 @@
             </div>
         </div>
 
-        <!-- 高级控制面板 -->
-        <div class="advanced-controls" id="advancedControls">
+        <!-- 🔧 高级控制面板 - 只在开发者模式显示 -->
+        <div class="advanced-controls developer-only" id="advancedControls">
             <h3>⚙️ 高级设置</h3>
             <button class="toggle-btn" id="tokenOptimizeBtn" onclick="toggleTokenOptimization()">🔧 Token优化</button>
             <button class="toggle-btn" id="smartSummaryBtn" onclick="toggleSmartSummary()">📝 智能摘要</button>
@@ -503,8 +530,12 @@
 
         <div class="settings-panel">
             <h3>🎛️ 面试官设置</h3>
-            <button class="toggle-btn" onclick="toggleAdvancedControls()">🔧 高级设置</button>
-            <button class="toggle-btn" onclick="toggleStatsPanel()">📊 统计面板</button>
+            
+            <!-- 🔧 开发者模式控制按钮 -->
+            <div class="user-mode-controls developer-only">
+                <button class="simple-toggle" onclick="toggleAdvancedControls()">⚙️ 高级设置</button>
+                <button class="simple-toggle" onclick="toggleStatsPanel()">📊 统计面板</button>
+            </div>
             
             <div class="voice-settings">
                 <select id="interviewerStyle">
@@ -543,8 +574,6 @@
                 <br>• 🎯 根据您的回答动态调整面试策略  
                 <br>• 🗣️ 提供接近真人的语音交互体验
                 <br>• 📊 生成专业的面试评估报告
-                <br>• 🔍 智能Token优化和成本控制
-                <br>• 📈 实时统计和性能监控
                 <br><br>
                 请选择面试风格和难度，然后点击"开始面试"开始我们的专业面试！
                 </span>
@@ -568,8 +597,8 @@
             <button onclick="clearChat()">🗑️ 清空对话</button>
         </div>
 
-        <!-- 导出控制 -->
-        <div class="export-controls">
+        <!-- 🔧 导出控制 - 只在开发者模式显示 -->
+        <div class="export-controls developer-only">
             <button class="export-btn" onclick="exportConversation('json')">📄 导出JSON</button>
             <button class="export-btn" onclick="exportConversation('txt')">📝 导出文本</button>
             <button class="export-btn" onclick="exportStats()">📊 导出统计</button>
@@ -592,10 +621,27 @@
         </div>
     </div>
 
-    <!-- ✅ 正确的JS文件引用（基于你的实际文件结构） -->
+    <!-- ✅ JS文件引用 -->
     <script src="js/config.js"></script>
     <script src="js/security.js"></script>
     <script src="js/tokenMonitoring.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- 模式显示控制脚本 -->
+    <script>
+        // 根据模式显示/隐藏开发者功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const isDeveloperMode = window.location.search.includes('dev=true');
+            const developerElements = document.querySelectorAll('.developer-only');
+            
+            developerElements.forEach(element => {
+                if (isDeveloperMode) {
+                    element.style.display = 'block';
+                } else {
+                    element.style.display = 'none';
+                }
+            });
+        });
+    </script>
 </body>
 </html>
